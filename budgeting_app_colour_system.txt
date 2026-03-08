@@ -1,0 +1,85 @@
+Budgeting App Colour System — Vibrant Teal + Neutrals
+
+Created: 2026-02-24
+
+1. Brand Identity
+
+This colour system is designed for a modern financial budgeting
+platform. Goal: Maintain a TD-style single vibrant brand colour with
+clean neutrals for a professional fintech feel.
+
+Primary Brand Colour: - Vibrant Teal: #0FB9A8
+
+------------------------------------------------------------------------
+
+2. Primary Teal Scale (Brand States)
+
+Use these for buttons, active UI elements, and highlights.
+
+-   Primary Teal: #0FB9A8
+-   Hover Teal: #0A9E90
+-   Active Teal: #087F74
+-   Light Teal Background: #E6F7F5
+
+Usage Guidelines: - Call-to-action buttons - Progress bars - Selected
+tabs - Savings goal indicators
+
+------------------------------------------------------------------------
+
+3. Neutral Colour System (Layout Foundation)
+
+Neutrals should make up about 70% of the interface.
+
+Background: - Main Background: #F8FAFC - Card Background: #FFFFFF
+
+Text: - Primary Text: #0F172A - Secondary Text: #475569 - Muted Text:
+#94A3B8
+
+Borders & Dividers: - Border Grey: #E5E7EB - Soft Divider: #F1F5F9
+
+------------------------------------------------------------------------
+
+4. Semantic Fintech Colours
+
+These should support financial meaning while matching the teal palette.
+
+Success (Income/Savings): - #22C55E
+
+Expense/Negative: - #EF4444
+
+Warning: - #F59E0B
+
+Information: - #3B82F6
+
+------------------------------------------------------------------------
+
+5. Chart Colour Tokens
+
+Use subtle variations that don’t overpower the teal brand.
+
+-   Teal Base: #0FB9A8
+-   Teal Soft: #7DD3FC
+-   Slate Blue: #64748B
+-   Light Grey: #CBD5F5
+-   Neutral Fill: #E2E8F0
+
+------------------------------------------------------------------------
+
+6. UI Ratio Recommendation
+
+To maintain a professional fintech look:
+
+-   70% Neutrals
+-   20% Teal Brand Colour
+-   10% Semantic Colours (success, expense, warning)
+
+------------------------------------------------------------------------
+
+7. Implementation Notes
+
+-   Avoid multiple bright accent colours.
+-   Let teal represent your brand identity.
+-   Use semantic colours sparingly for financial meaning.
+-   Maintain consistent contrast for accessibility.
+
+End of Document.

@@ -1,0 +1,495 @@
+{% extends "base.html" %}
+
+{% block title %}Settings — Financial Manager{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}">
+{% endblock %}
+
+{% block content %}
+<main class="main-content settings-page">
+    <div class="page-header">
+        <h1><i class="fas fa-cog"></i> Settings</h1>
+    </div>
+
+    <div class="settings-grid">
+
+        <!-- Personal Information -->
+        <div class="settings-section" id="sectionPersonal">
+            <div class="section-header">
+                <h2><i class="fas fa-user-circle"></i> Personal Information</h2>
+                <div class="section-header-actions">
+                    <button class="btn-edit" onclick="editSection('sectionPersonal')">
+                        <i class="fas fa-pencil-alt"></i> Edit
+                    </button>
+                    <div class="edit-actions hidden">
+                        <button class="btn-save" onclick="savePersonalInfo()">
+                            <i class="fas fa-save"></i> Save
+                        </button>
+                        <button class="btn-cancel" onclick="cancelSection('sectionPersonal')">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="section-body">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="fullName"><i class="fas fa-user"></i> Full Name</label>
+                        <input type="text" id="fullName" value="{{ user.full_name }}" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label for="email"><i class="fas fa-envelope"></i> Email</label>
+                        <input type="email" id="email" value="{{ user.email }}" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label for="dateOfBirth"><i class="fas fa-birthday-cake"></i> Date of Birth</label>
+                        <input type="date" id="dateOfBirth"
+                            value="{{ user.date_of_birth.strftime('%Y-%m-%d') if user.date_of_birth else '' }}" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label for="province"><i class="fas fa-map-marker-alt"></i> Province</label>
+                        <select id="province" disabled>
+                            <option value="">— Select —</option>
+                            {% for code, name in province_map.items() %}
+                            <option value="{{ code }}" {% if user.province == code %}selected{% endif %}>{{ name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="lifeStage"><i class="fas fa-road"></i> Life Stage</label>
+                        <select id="lifeStage" disabled>
+                            <option value="">— Select —</option>
+                            {% for val, label in life_stage_map.items() %}
+                            <option value="{{ val }}" {% if user.life_stage == val %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="employmentStatus"><i class="fas fa-briefcase"></i> Employment</label>
+                        <select id="employmentStatus" disabled>
+                            <option value="">— Select —</option>
+                            {% for val, label in employment_map.items() %}
+                            <option value="{{ val }}" {% if user.employment_status == val %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="householdStatus"><i class="fas fa-home"></i> Household</label>
+                        <select id="householdStatus" disabled>
+                            <option value="">— Select —</option>
+                            {% for val, label in household_map.items() %}
+                            <option value="{{ val }}" {% if user.household_status == val %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Change Password -->
+        <div class="settings-section" id="sectionPassword">
+            <div class="section-header">
+                <h2><i class="fas fa-lock"></i> Change Password</h2>
+                <div class="section-header-actions">
+                    <button class="btn-edit" onclick="editSection('sectionPassword')">
+                        <i class="fas fa-pencil-alt"></i> Edit
+                    </button>
+                    <div class="edit-actions hidden">
+                        <button class="btn-save" onclick="savePassword()">
+                            <i class="fas fa-save"></i> Save
+                        </button>
+                        <button class="btn-cancel" onclick="cancelSection('sectionPassword')">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="section-body">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="currentPassword"><i class="fas fa-key"></i> Current Password</label>
+                        <input type="password" id="currentPassword" placeholder="••••••••" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label for="newPassword"><i class="fas fa-lock"></i> New Password</label>
+                        <input type="password" id="newPassword" placeholder="••••••••" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmPassword"><i class="fas fa-check-circle"></i> Confirm Password</label>
+                        <input type="password" id="confirmPassword" placeholder="••••••••" disabled>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Income & Savings -->
+        <div class="settings-section" id="sectionIncome">
+            <div class="section-header">
+                <h2><i class="fas fa-dollar-sign"></i> Income & Savings</h2>
+                <div class="section-header-actions">
+                    <button class="btn-edit" onclick="editSection('sectionIncome')">
+                        <i class="fas fa-pencil-alt"></i> Edit
+                    </button>
+                    <div class="edit-actions hidden">
+                        <button class="btn-save" onclick="saveIncome()">
+                            <i class="fas fa-save"></i> Save
+                        </button>
+                        <button class="btn-cancel" onclick="cancelSection('sectionIncome')">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="section-body">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="hourlyWage"><i class="fas fa-clock"></i> Hourly Wage</label>
+                        <div class="input-prefix-wrapper">
+                            <span class="input-prefix">$</span>
+                            <input type="number" id="hourlyWage" min="0" step="0.01"
+                                value="{{ '%.2f'|format(settings.hourly_wage) }}"
+                                oninput="updateMonthlyIncome()" disabled>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="hoursPerWeek"><i class="fas fa-calendar-week"></i> Hours per Week</label>
+                        <input type="number" id="hoursPerWeek" min="0" step="0.5"
+                            value="{{ '%.1f'|format(settings.hours_per_week) }}"
+                            oninput="updateMonthlyIncome()" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label for="weeksPerMonth"><i class="fas fa-calendar-alt"></i> Weeks per Month</label>
+                        <input type="number" id="weeksPerMonth" min="0" step="0.01"
+                            value="{{ '%.2f'|format(settings.weeks_per_month) }}"
+                            oninput="updateMonthlyIncome()" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label for="savingsTarget"><i class="fas fa-piggy-bank"></i> Savings Target</label>
+                        <div class="input-suffix-wrapper">
+                            <input type="number" id="savingsTarget" min="0" max="100" step="1"
+                                value="{{ (settings.savings_target_percent * 100)|round|int }}" disabled>
+                            <span class="input-suffix">%</span>
+                        </div>
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label><i class="fas fa-calculator"></i> Calculated Monthly Income</label>
+                        <div class="calc-display">
+                            <span class="calc-label">Hourly × Hours/wk × Weeks/mo</span>
+                            <span class="calc-value" id="monthlyIncomeDisplay">
+                                ${{ '{:,.2f}'.format(settings.monthly_income) }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Account Limits -->
+        <div class="settings-section" id="sectionLimits">
+            <div class="section-header">
+                <h2><i class="fas fa-university"></i> Account Limits</h2>
+                <div class="section-header-actions">
+                    <button class="btn-edit" onclick="editSection('sectionLimits')">
+                        <i class="fas fa-pencil-alt"></i> Edit
+                    </button>
+                    <div class="edit-actions hidden">
+                        <button class="btn-save" onclick="saveLimits()">
+                            <i class="fas fa-save"></i> Save
+                        </button>
+                        <button class="btn-cancel" onclick="cancelSection('sectionLimits')">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="section-body">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="tfsaYearly"><i class="fas fa-chart-bar"></i> TFSA Yearly Limit</label>
+                        <div class="input-prefix-wrapper">
+                            <span class="input-prefix">$</span>
+                            <input type="number" id="tfsaYearly" min="0" step="0.01"
+                                value="{{ '%.2f'|format(settings.tfsa_yearly_limit) }}" disabled>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="tfsaLifetime"><i class="fas fa-chart-line"></i> TFSA Lifetime Limit</label>
+                        <div class="input-prefix-wrapper">
+                            <span class="input-prefix">$</span>
+                            <input type="number" id="tfsaLifetime" min="0" step="0.01"
+                                value="{{ '%.2f'|format(settings.tfsa_lifetime_limit) }}" disabled>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="fhsaYearly"><i class="fas fa-home"></i> FHSA Yearly Limit</label>
+                        <div class="input-prefix-wrapper">
+                            <span class="input-prefix">$</span>
+                            <input type="number" id="fhsaYearly" min="0" step="0.01"
+                                value="{{ '%.2f'|format(settings.fhsa_yearly_limit) }}" disabled>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="fhsaLifetime"><i class="fas fa-house-user"></i> FHSA Lifetime Limit</label>
+                        <div class="input-prefix-wrapper">
+                            <span class="input-prefix">$</span>
+                            <input type="number" id="fhsaLifetime" min="0" step="0.01"
+                                value="{{ '%.2f'|format(settings.fhsa_lifetime_limit) }}" disabled>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="fhsaOpenYear"><i class="fas fa-calendar-alt"></i> FHSA Account Opened Year</label>
+                        <input type="number" id="fhsaOpenYear" min="2023" max="2100" step="1"
+                            value="{{ settings.fhsa_open_year or 2023 }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Financial Profile -->
+        <div class="settings-section" id="sectionFinancial">
+            <div class="section-header">
+                <h2><i class="fas fa-bullseye"></i> Financial Profile</h2>
+                <div class="section-header-actions">
+                    <button class="btn-edit" onclick="editSection('sectionFinancial')">
+                        <i class="fas fa-pencil-alt"></i> Edit
+                    </button>
+                    <div class="edit-actions hidden">
+                        <button class="btn-save" onclick="saveFinancialProfile()">
+                            <i class="fas fa-save"></i> Save
+                        </button>
+                        <button class="btn-cancel" onclick="cancelSection('sectionFinancial')">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="section-body">
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <label style="margin-bottom: 0.6rem; display: flex; align-items: center; gap: 0.4rem; font-size: 0.875rem; font-weight: 600;">
+                        <i class="fas fa-flag" style="color: var(--primary-color); font-size: 0.8rem; width: 1rem;"></i> Financial Goals
+                    </label>
+                    <div class="checkbox-group">
+                        {% set goals = financial_goals %}
+                        {% for value, label in [
+                            ('emergency-fund', 'Emergency Fund'),
+                            ('debt-payoff', 'Debt Payoff'),
+                            ('home-purchase', 'Home Purchase'),
+                            ('retirement', 'Retirement'),
+                            ('investing', 'Investing'),
+                            ('travel', 'Travel'),
+                            ('education', 'Education')
+                        ] %}
+                        <label class="checkbox-label checkbox-disabled">
+                            <input type="checkbox" name="financialGoals" value="{{ value }}"
+                                {% if value in goals %}checked{% endif %} disabled>
+                            {{ label }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label style="margin-bottom: 0.6rem; display: flex; align-items: center; gap: 0.4rem; font-size: 0.875rem; font-weight: 600;">
+                        <i class="fas fa-wallet" style="color: var(--primary-color); font-size: 0.8rem; width: 1rem;"></i> Registered Accounts
+                    </label>
+                    <div class="checkbox-group">
+                        {% set accounts = registered_accounts %}
+                        {% for value, label in [('tfsa', 'TFSA'), ('rrsp', 'RRSP'), ('resp', 'RESP'), ('fhsa', 'FHSA')] %}
+                        <label class="checkbox-label checkbox-disabled">
+                            <input type="checkbox" name="registeredAccounts" value="{{ value }}"
+                                {% if value in accounts %}checked{% endif %} disabled>
+                            {{ label }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</main>
+
+<div id="toast" class="toast"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function storeOriginals(sectionId) {
+    const section = document.getElementById(sectionId);
+    section.querySelectorAll('input, select').forEach(el => {
+        if (el.type === 'checkbox') {
+            el.dataset.original = el.checked ? 'true' : 'false';
+        } else {
+            el.dataset.original = el.value;
+        }
+    });
+}
+
+function editSection(sectionId) {
+    const section = document.getElementById(sectionId);
+    storeOriginals(sectionId);
+    section.querySelectorAll('input, select').forEach(el => {
+        el.disabled = false;
+    });
+    section.querySelectorAll('.checkbox-label').forEach(el => {
+        el.classList.remove('checkbox-disabled');
+    });
+    section.querySelector('.btn-edit').classList.add('hidden');
+    section.querySelector('.edit-actions').classList.remove('hidden');
+}
+
+function cancelSection(sectionId) {
+    const section = document.getElementById(sectionId);
+    section.querySelectorAll('input, select').forEach(el => {
+        if (el.type === 'checkbox') {
+            el.checked = el.dataset.original === 'true';
+        } else {
+            el.value = el.dataset.original || '';
+        }
+        el.disabled = true;
+    });
+    section.querySelectorAll('.checkbox-label').forEach(el => {
+        el.classList.add('checkbox-disabled');
+    });
+    section.querySelector('.btn-edit').classList.remove('hidden');
+    section.querySelector('.edit-actions').classList.add('hidden');
+    // Recalculate income display in case it changed
+    if (sectionId === 'sectionIncome') updateMonthlyIncome();
+}
+
+function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    toast.textContent = '';
+    const icon = document.createElement('i');
+    icon.className = type === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-circle';
+    toast.appendChild(icon);
+    toast.appendChild(document.createTextNode(' ' + message));
+    toast.className = 'toast ' + type + ' show';
+    setTimeout(() => toast.classList.remove('show'), 3500);
+}
+
+function updateMonthlyIncome() {
+    const wage = parseFloat(document.getElementById('hourlyWage').value) || 0;
+    const hours = parseFloat(document.getElementById('hoursPerWeek').value) || 0;
+    const weeks = parseFloat(document.getElementById('weeksPerMonth').value) || 0;
+    document.getElementById('monthlyIncomeDisplay').textContent =
+        '$' + (wage * hours * weeks).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+async function postSettings(payload, btn, defaultLabel, sectionId) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    try {
+        const response = await fetch('/api/settings/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to save');
+        showToast('Settings saved');
+        cancelSection(sectionId);
+    } catch (err) {
+        showToast(err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-save"></i> ' + defaultLabel;
+    }
+}
+
+function saveIncome() {
+    const btn = event.target.closest('button');
+    postSettings({
+        hourlyWage: parseFloat(document.getElementById('hourlyWage').value),
+        hoursPerWeek: parseFloat(document.getElementById('hoursPerWeek').value),
+        weeksPerMonth: parseFloat(document.getElementById('weeksPerMonth').value),
+        savingsTargetPercent: parseFloat(document.getElementById('savingsTarget').value) / 100
+    }, btn, 'Save', 'sectionIncome');
+}
+
+function saveLimits() {
+    const btn = event.target.closest('button');
+    postSettings({
+        tfsaYearlyLimit: parseFloat(document.getElementById('tfsaYearly').value),
+        tfsaLifetimeLimit: parseFloat(document.getElementById('tfsaLifetime').value),
+        fhsaYearlyLimit: parseFloat(document.getElementById('fhsaYearly').value),
+        fhsaLifetimeLimit: parseFloat(document.getElementById('fhsaLifetime').value),
+        fhsaOpenYear: parseInt(document.getElementById('fhsaOpenYear').value)
+    }, btn, 'Save', 'sectionLimits');
+}
+
+function saveFinancialProfile() {
+    const btn = event.target.closest('button');
+    const goals = [...document.querySelectorAll('input[name="financialGoals"]:checked')].map(cb => cb.value);
+    const accs = [...document.querySelectorAll('input[name="registeredAccounts"]:checked')].map(cb => cb.value);
+    postSettings({ financialGoals: goals, registeredAccounts: accs }, btn, 'Save', 'sectionFinancial');
+}
+
+async function savePersonalInfo() {
+    const btn = event.target.closest('button');
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    try {
+        const res = await fetch('/api/profile/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                fullName: document.getElementById('fullName').value,
+                email: document.getElementById('email').value,
+                dateOfBirth: document.getElementById('dateOfBirth').value,
+                province: document.getElementById('province').value,
+                lifeStage: document.getElementById('lifeStage').value,
+                employmentStatus: document.getElementById('employmentStatus').value,
+                householdStatus: document.getElementById('householdStatus').value,
+            })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to save');
+        showToast('Personal info saved');
+        cancelSection('sectionPersonal');
+        const name = document.getElementById('fullName').value;
+        const trigger = document.getElementById('profileTriggerName');
+        if (trigger) trigger.textContent = name;
+    } catch (err) {
+        showToast(err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = orig;
+    }
+}
+
+async function savePassword() {
+    const btn = event.target.closest('button');
+    const newPw = document.getElementById('newPassword').value;
+    const confirm = document.getElementById('confirmPassword').value;
+    if (newPw !== confirm) { showToast('Passwords do not match', 'error'); return; }
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    try {
+        const res = await fetch('/api/profile/password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                currentPassword: document.getElementById('currentPassword').value,
+                newPassword: newPw,
+            })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed');
+        showToast('Password updated');
+        cancelSection('sectionPassword');
+        ['currentPassword', 'newPassword', 'confirmPassword'].forEach(id => {
+            document.getElementById(id).value = '';
+        });
+    } catch (err) {
+        showToast(err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = orig;
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,6 @@
+Flask==3.0.3
+firebase-admin
+anthropic
+pdfplumber
+werkzeug
+yfinance

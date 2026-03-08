@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Financial Manager{% endblock %}</title>
+    <link rel="preconnect" href="https://api.fontshare.com">
+    <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700,800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <div class="container">
+        <!-- Universal Header -->
+        <header class="header">
+            <div class="header-content">
+                <a href="/" class="header-logo">
+                    <img src="{{ url_for('static', filename='images/TideLogo.png') }}" alt="Tide Logo" class="logo-img">
+                </a>
+                <nav class="header-nav">
+                    <a href="/stocks" class="nav-link">Investments</a>
+                    <a href="/diary" class="nav-link">Diary</a>
+                </nav>
+                {% block header_actions %}{% endblock %}
+                <div class="header-right">
+                    {% set parts = (session.user_name | default('')).split() %}
+                    {% set initials = (parts[0][0] if parts else '') ~ (parts[-1][0] if parts | length > 1 else '') %}
+                    <div class="profile-wrapper">
+                        <button class="profile-trigger" id="profileTrigger" onclick="toggleProfileDropdown()">
+                            <i class="fas fa-user"></i>
+                            <span class="profile-trigger-name" id="profileTriggerName">{{ session.user_name | default('') }}</span>
+                            <i class="fas fa-chevron-down profile-chevron" id="profileChevron"></i>
+                        </button>
+                        <div class="profile-dropdown hidden" id="profileDropdown">
+                            <a href="/profile" class="dropdown-item">My Profile</a>
+                            <a href="/settings" class="dropdown-item">Settings</a>
+                        </div>
+                    </div>
+                    <a href="/logout" class="nav-logout">
+                        <i class="fas fa-lock"></i> Logout
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        {% block content %}{% endblock %}
+
+
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+    </div>
+
+    {% block modals %}{% endblock %}
+
+    <script>
+    function toggleProfileDropdown() {
+        const dropdown = document.getElementById('profileDropdown');
+        const chevron = document.getElementById('profileChevron');
+        const name = document.getElementById('profileTriggerName');
+        const isHidden = dropdown.classList.toggle('hidden');
+        const isOpen = !isHidden;
+        chevron.classList.toggle('visible', isOpen);
+        chevron.classList.toggle('open', isOpen);
+        name.classList.toggle('visible', isOpen);
+    }
+
+    function closeProfileDropdown() {
+        document.getElementById('profileDropdown')?.classList.add('hidden');
+        document.getElementById('profileChevron')?.classList.remove('visible', 'open');
+        document.getElementById('profileTriggerName')?.classList.remove('visible');
+    }
+
+    document.addEventListener('click', function(e) {
+        const wrapper = document.getElementById('profileTrigger')?.closest('.profile-wrapper');
+        if (wrapper && !wrapper.contains(e.target)) {
+            closeProfileDropdown();
+        }
+    });
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

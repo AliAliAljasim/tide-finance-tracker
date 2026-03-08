@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Net Worth — Financial Manager{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Banner -->
+<div class="dashboard-hero nw-hero">
+    <p class="nw-hero-label">Total Net Worth</p>
+    <h1 class="nw-hero-value" id="heroNetWorth">—</h1>
+    <p class="nw-hero-change" id="heroNetWorthChange"></p>
+</div>
+
+<!-- Quick Action Pills -->
+<div class="dashboard-pill-strip">
+    <a href="/" class="pill-btn">
+        <i class="fas fa-home"></i>
+        <span>Dashboard</span>
+    </a>
+</div>
+
+<main class="main-content">
+
+    <!-- Net Worth Over Time Chart -->
+    <div class="card nw-chart-card">
+        <div class="card-header">
+            <h2><i class="fas fa-chart-line"></i> Net Worth Over Time</h2>
+        </div>
+        <div class="card-body">
+            <div class="nw-chart-container">
+                <canvas id="networthChart"></canvas>
+            </div>
+            <p class="nw-chart-empty hidden" id="chartEmpty">
+                No snapshot history yet. Your net worth will be tracked automatically each day you visit.
+            </p>
+            <div class="nw-range-btns" id="rangebtns">
+                <button class="nw-range-btn" data-range="1M" onclick="setRange('1M')">1M</button>
+                <button class="nw-range-btn" data-range="3M" onclick="setRange('3M')">3M</button>
+                <button class="nw-range-btn" data-range="6M" onclick="setRange('6M')">6M</button>
+                <button class="nw-range-btn" data-range="1Y" onclick="setRange('1Y')">1Y</button>
+                <button class="nw-range-btn active" data-range="ALL" onclick="setRange('ALL')">ALL</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Breakdown Row -->
+    <div class="nw-breakdown-grid">
+        <div class="card nw-account-card">
+            <div class="nw-account-icon" style="background: rgba(37,99,235,0.1); color: rgb(37,99,235);">
+                <i class="fas fa-university"></i>
+            </div>
+            <div class="nw-account-info">
+                <span class="nw-account-label">Chequing</span>
+                <span class="nw-account-value" id="valChequing">—</span>
+            </div>
+        </div>
+        <div class="card nw-account-card">
+            <div class="nw-account-icon" style="background: rgba(16,185,129,0.1); color: rgb(16,185,129);">
+                <i class="fas fa-wallet"></i>
+            </div>
+            <div class="nw-account-info">
+                <span class="nw-account-label">Cash</span>
+                <span class="nw-account-value" id="valCash">—</span>
+            </div>
+        </div>
+        <div class="card nw-account-card">
+            <div class="nw-account-icon" style="background: rgba(139,92,246,0.1); color: rgb(139,92,246);">
+                <i class="fas fa-chart-pie"></i>
+            </div>
+            <div class="nw-account-info">
+                <span class="nw-account-label">TFSA</span>
+                <span class="nw-account-value" id="valTFSA">—</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Goals Section -->
+    <div class="nw-goals-section">
+        <div class="nw-goals-header">
+            <h2><i class="fas fa-bullseye"></i> Goals</h2>
+            <button class="btn btn-primary" onclick="openGoalModal()">
+                <i class="fas fa-plus"></i> Add Goal
+            </button>
+        </div>
+        <div class="nw-goals-grid" id="goalsGrid"></div>
+        <p class="nw-goals-empty hidden" id="goalsEmpty">
+            No goals yet. Add your first financial goal to start tracking your progress.
+        </p>
+    </div>
+
+</main>
+{% endblock %}
+
+{% block modals %}
+<!-- Goal Modal -->
+<div id="goalModal" class="modal-overlay hidden" onclick="handleModalOverlayClick(event)">
+    <div class="modal-box goal-modal-box">
+        <h2 class="modal-title" id="goalModalTitle">Add Goal</h2>
+        <input type="hidden" id="goalId">
+
+        <div class="goal-form">
+
+            <!-- Title -->
+            <div class="form-group">
+                <label class="form-label">Title</label>
+                <input type="text" id="goalTitle" class="form-input" placeholder="e.g. Emergency Fund" maxlength="100">
+            </div>
+
+            <!-- Icon + Color row -->
+            <div class="form-row">
+                <div class="form-group" style="flex:1; min-width: 0;">
+                    <label class="form-label">Icon</label>
+                    <div class="icon-picker" id="iconPicker"></div>
+                </div>
+                <div class="form-group" style="flex:1; min-width: 0;">
+                    <label class="form-label">Color</label>
+                    <div class="color-picker" id="colorPicker"></div>
+                </div>
+            </div>
+
+            <!-- Goal Type -->
+            <div class="form-group">
+                <label class="form-label">Goal Type</label>
+                <div class="type-toggle">
+                    <button class="type-btn active" id="typeTarget" onclick="setGoalType('target')">
+                        <i class="fas fa-bullseye"></i> Target Amount
+                    </button>
+                    <button class="type-btn" id="typePeriodic" onclick="setGoalType('periodic')">
+                        <i class="fas fa-redo"></i> Recurring
+                    </button>
+                </div>
+            </div>
+
+            <!-- Target fields -->
+            <div id="targetFields">
+                <div class="form-row">
+                    <div class="form-group" style="flex:1; min-width: 0;">
+                        <label class="form-label">Target Amount</label>
+                        <input type="number" id="goalTargetAmount" class="form-input" placeholder="10000" min="0" step="0.01">
+                    </div>
+                    <div class="form-group" style="flex:1; min-width: 0;">
+                        <label class="form-label">Current Amount</label>
+                        <input type="number" id="goalCurrentAmount" class="form-input" placeholder="0" min="0" step="0.01">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex:1; min-width: 0;">
+                        <label class="form-label">Monthly Contribution</label>
+                        <input type="number" id="goalMonthlyContrib" class="form-input" placeholder="200" min="0" step="0.01">
+                    </div>
+                    <div class="form-group" style="flex:1; min-width: 0;">
+                        <label class="form-label">Deadline (optional)</label>
+                        <input type="date" id="goalDeadline" class="form-input">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Periodic fields -->
+            <div id="periodicFields" style="display:none">
+                <div class="form-row">
+                    <div class="form-group" style="flex:1; min-width: 0;">
+                        <label class="form-label">Contribution Amount</label>
+                        <input type="number" id="goalPeriodicAmount" class="form-input" placeholder="200" min="0" step="0.01">
+                    </div>
+                    <div class="form-group" style="flex:1; min-width: 0;">
+                        <label class="form-label">Frequency</label>
+                        <select id="goalFrequency" class="form-input">
+                            <option value="weekly">Weekly</option>
+                            <option value="biweekly">Bi-Weekly</option>
+                            <option value="monthly" selected>Monthly</option>
+                            <option value="quarterly">Quarterly</option>
+                            <option value="yearly">Yearly</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn btn-primary" onclick="saveGoal()">Save Goal</button>
+            <button class="btn btn-secondary" onclick="closeGoalModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/networth.js') }}"></script>
+{% endblock %}
