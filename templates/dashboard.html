@@ -81,6 +81,165 @@
         </div>
     </div>
 </div>
+
+{% if not onboarding_complete %}
+<!-- Onboarding Checklist Modal -->
+<div id="onboardingModal" class="onboarding-modal">
+    <div class="onboarding-modal-content">
+
+        <!-- Progress bar -->
+        <div class="onboarding-progress-bar">
+            <div class="onboarding-progress-fill" id="onboardingProgressFill" style="width:20%"></div>
+        </div>
+
+        <!-- Header -->
+        <div class="onboarding-header">
+            <h2><i class="fas fa-rocket"></i> Welcome! Let's get you set up</h2>
+            <p>Complete these steps to get the most out of your dashboard.</p>
+            <div class="onboarding-progress-label" id="onboardingProgressLabel">1 / 5 complete</div>
+        </div>
+
+        <!-- Checklist -->
+        <div class="onboarding-body">
+
+            <!-- Step 1: Auto-complete -->
+            <div class="onboarding-item completed" id="obStep1">
+                <div class="onboarding-item-header" style="cursor:default;">
+                    <div class="onboarding-check"><i class="fas fa-check"></i></div>
+                    <span class="onboarding-item-title">Account created</span>
+                </div>
+            </div>
+
+            <!-- Step 2: Add holdings -->
+            <div class="onboarding-item" id="obStep2">
+                <button class="onboarding-item-header" onclick="obToggle(2)" type="button">
+                    <div class="onboarding-check"><i class="fas fa-check"></i></div>
+                    <span class="onboarding-item-title">Add investment holdings</span>
+                    <i class="fas fa-chevron-down onboarding-item-chevron"></i>
+                </button>
+                <div class="onboarding-item-body">
+                    <div class="onboarding-form-group">
+                        <label>Stock / ETF Ticker</label>
+                        <div class="ticker-autocomplete">
+                            <input type="text" id="obTicker" class="ticker-input" placeholder="Search ticker (e.g. AAPL, VCN.TO)..." autocomplete="off">
+                            <div class="ticker-dropdown" id="obTickerDropdown"></div>
+                        </div>
+                        <input type="hidden" id="obTickerSymbol">
+                        <input type="hidden" id="obTickerName">
+                    </div>
+                    <div class="onboarding-form-row">
+                        <div class="onboarding-form-group">
+                            <label>Account Type</label>
+                            <select id="obAccountType">
+                                <option value="TFSA">TFSA</option>
+                                <option value="RRSP">RRSP</option>
+                                <option value="FHSA">FHSA</option>
+                                <option value="RESP">RESP</option>
+                                <option value="Non-Registered">Non-Registered</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="onboarding-form-row">
+                        <div class="onboarding-form-group">
+                            <label>Shares</label>
+                            <input type="number" id="obShares" placeholder="0.0000" min="0" step="any">
+                        </div>
+                        <div class="onboarding-form-group">
+                            <label>Avg Cost / Share ($)</label>
+                            <input type="number" id="obAvgCost" placeholder="0.00" min="0" step="any">
+                        </div>
+                    </div>
+                    <button class="onboarding-step-btn" onclick="obAddHolding()" type="button">
+                        <i class="fas fa-plus"></i> Add Holding
+                    </button>
+                    <div class="onboarding-holdings-list" id="obHoldingsList"></div>
+                    <button class="onboarding-step-btn secondary" id="obStep2DoneBtn" onclick="obMarkStep(2)" type="button" disabled>
+                        <i class="fas fa-check"></i> Mark as done
+                    </button>
+                    <span class="onboarding-step-hint">You can add more holdings later from the Investments page.</span>
+                </div>
+            </div>
+
+            <!-- Step 3: Income & wage -->
+            <div class="onboarding-item" id="obStep3">
+                <button class="onboarding-item-header" onclick="obToggle(3)" type="button">
+                    <div class="onboarding-check"><i class="fas fa-check"></i></div>
+                    <span class="onboarding-item-title">Set income &amp; wage</span>
+                    <i class="fas fa-chevron-down onboarding-item-chevron"></i>
+                </button>
+                <div class="onboarding-item-body">
+                    <div class="onboarding-form-row">
+                        <div class="onboarding-form-group">
+                            <label>Hourly Wage ($)</label>
+                            <input type="number" id="obHourlyWage" placeholder="20.00" min="0" step="0.01">
+                        </div>
+                        <div class="onboarding-form-group">
+                            <label>Hours / Week</label>
+                            <input type="number" id="obHoursPerWeek" placeholder="40" min="0" step="0.5">
+                        </div>
+                    </div>
+                    <button class="onboarding-step-btn" onclick="obSaveIncome()" type="button">
+                        Save Income Settings
+                    </button>
+                    <div class="onboarding-step-success" id="obStep3Success">
+                        <i class="fas fa-check-circle"></i> Saved!
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: Savings target -->
+            <div class="onboarding-item" id="obStep4">
+                <button class="onboarding-item-header" onclick="obToggle(4)" type="button">
+                    <div class="onboarding-check"><i class="fas fa-check"></i></div>
+                    <span class="onboarding-item-title">Set savings target</span>
+                    <i class="fas fa-chevron-down onboarding-item-chevron"></i>
+                </button>
+                <div class="onboarding-item-body">
+                    <div class="onboarding-form-group">
+                        <label>Savings Target (% of monthly income)</label>
+                        <input type="number" id="obSavingsTarget" placeholder="20" min="0" max="100" step="1">
+                    </div>
+                    <button class="onboarding-step-btn" onclick="obSaveSavings()" type="button">
+                        Save Target
+                    </button>
+                    <div class="onboarding-step-success" id="obStep4Success">
+                        <i class="fas fa-check-circle"></i> Saved!
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 5: Budget categories -->
+            <div class="onboarding-item" id="obStep5">
+                <button class="onboarding-item-header" onclick="obToggle(5)" type="button">
+                    <div class="onboarding-check"><i class="fas fa-check"></i></div>
+                    <span class="onboarding-item-title">Review budget categories</span>
+                    <i class="fas fa-chevron-down onboarding-item-chevron"></i>
+                </button>
+                <div class="onboarding-item-body">
+                    <span class="onboarding-step-hint" style="margin-top:0.5rem;display:block;">Adjust your default monthly budget amounts:</span>
+                    <div id="obCategoriesList"></div>
+                    <button class="onboarding-step-btn" onclick="obSaveBudget()" type="button">
+                        Confirm Budget
+                    </button>
+                    <div class="onboarding-step-success" id="obStep5Success">
+                        <i class="fas fa-check-circle"></i> Budget confirmed!
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /.onboarding-body -->
+
+        <!-- Footer -->
+        <div class="onboarding-footer">
+            <button class="onboarding-skip-btn" onclick="obSkip()" type="button">Skip for now</button>
+            <button class="onboarding-done-btn" id="obDoneBtn" onclick="obComplete()" type="button" disabled>
+                <i class="fas fa-check"></i> Done
+            </button>
+        </div>
+
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -92,5 +251,9 @@
     if (el) el.textContent = text;
 })();
 </script>
+{% if not onboarding_complete %}
+<script src="{{ url_for('static', filename='js/stocks.js') }}"></script>
+{% endif %}
+<script>const ONBOARDING_COMPLETE = {{ 'true' if onboarding_complete else 'false' }};</script>
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% endblock %}

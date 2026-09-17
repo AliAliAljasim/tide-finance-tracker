@@ -29,7 +29,7 @@
     <button class="btn btn-warning btn-sm" onclick="showAddHoldingModal()">
         <i class="fas fa-plus"></i> Holding
     </button>
-    <button class="btn btn-primary btn-sm" onclick="refreshData()">
+    <button class="btn btn-primary btn-sm" onclick="forceRefreshPrices()" title="Refresh Prices">
         <i class="fas fa-sync-alt"></i>
     </button>
     <button class="btn btn-danger btn-sm" onclick="confirmDeleteAccount()" title="Close Account">
@@ -446,12 +446,16 @@
             <form id="editHoldingForm">
                 <input type="hidden" id="editHoldingId">
                 <div class="form-group">
-                    <label for="editHoldingTicker">Ticker</label>
-                    <input type="text" id="editHoldingTicker" required>
+                    <label for="editHoldingTickerInput">Ticker</label>
+                    <div class="ticker-autocomplete">
+                        <input type="text" id="editHoldingTickerInput" class="ticker-input" placeholder="Search ticker symbol or name..." autocomplete="off" required>
+                        <div id="editHoldingTickerDropdown" class="ticker-dropdown"></div>
+                    </div>
+                    <input type="hidden" id="editHoldingTicker">
                 </div>
                 <div class="form-group">
                     <label for="editHoldingName">Company Name</label>
-                    <input type="text" id="editHoldingName">
+                    <input type="text" id="editHoldingName" readonly>
                 </div>
                 <div class="form-group">
                     <label for="editHoldingShares">Total Shares</label>

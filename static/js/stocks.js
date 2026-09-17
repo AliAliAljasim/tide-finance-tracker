@@ -33,9 +33,9 @@ let performanceChart = null;
 
 // Chart color palette
 const chartColors = [
-    '#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
-    '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1',
-    '#14b8a6', '#e11d48', '#0ea5e9', '#a855f7', '#22c55e'
+    '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#f43f5e',
+    '#06b6d4', '#a3e635', '#fb923c', '#e879f9', '#34d399',
+    '#60a5fa', '#fbbf24', '#c084fc', '#f87171', '#2dd4bf'
 ];
 
 // Load TFSA Summary & Stats
@@ -202,37 +202,62 @@ function renderAllocationChart(holdings) {
         return;
     }
 
-    const labels = holdings.map(h => h.ticker);
-    const values = holdings.map(h => h.marketValue);
-    const totalValue = values.reduce((a, b) => a + b, 0);
-    const colors = holdings.map((_, i) => chartColors[i % chartColors.length]);
+    const totalValue = holdings.reduce((s, h) => s + h.marketValue, 0);
+
+    // Sort by market value descending, take top 9, require >= 5%
+    const sorted = [...holdings].sort((a, b) => b.marketValue - a.marketValue);
+    const shown = sorted.filter((h, i) => i < 9 && (h.marketValue / totalValue) * 100 >= 5);
+    const otherValue = totalValue - shown.reduce((s, h) => s + h.marketValue, 0);
+
+    const slices = [...shown];
+    if (otherValue > 0.01) slices.push({ ticker: 'Other', marketValue: otherValue });
+
+    const colors = slices.map((s, i) =>
+        s.ticker === 'Other' ? '#4b5563' : chartColors[i % chartColors.length]
+    );
 
     allocationChart = new Chart(ctx, {
-        type: 'doughnut',
+        type: 'pie',
         data: {
-            labels: labels,
+            labels: slices.map(s => s.ticker),
             datasets: [{
-                data: values,
+                data: slices.map(s => s.marketValue),
                 backgroundColor: colors,
                 borderWidth: 2,
-                borderColor: '#ffffff',
-                hoverBorderWidth: 3
+                borderColor: '#161618',
+                hoverOffset: 6,
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            cutout: '60%',
+            animation: { animateRotate: true, duration: 600 },
             plugins: {
                 legend: { display: false },
                 tooltip: {
+                    backgroundColor: '#1e1e22',
+                    borderColor: '#2e2e34',
+                    borderWidth: 1,
+                    padding: 10,
                     callbacks: {
                         label: function(context) {
                             const pct = ((context.parsed / totalValue) * 100).toFixed(1);
-                            return `${context.label}: ${formatCurrency(context.parsed)} (${pct}%)`;
+                            return `  ${formatCurrency(context.parsed)}  (${pct}%)`;
                         }
                     }
                 }
+            },
+            onHover: function(event, elements) {
+                const dataset = allocationChart.data.datasets[0];
+                if (elements.length > 0) {
+                    const hoveredIndex = elements[0].index;
+                    dataset.backgroundColor = colors.map((c, i) =>
+                        i === hoveredIndex ? c : c + '40'
+                    );
+                } else {
+                    dataset.backgroundColor = colors;
+                }
+                allocationChart.update('none');
             }
         }
     });
@@ -240,15 +265,18 @@ function renderAllocationChart(holdings) {
     // Custom legend
     const legendEl = document.getElementById('allocationLegend');
     legendEl.innerHTML = '';
-    holdings.forEach((h, i) => {
-        const pct = totalValue > 0 ? ((h.marketValue / totalValue) * 100).toFixed(1) : 0;
+    slices.forEach((s, i) => {
+        const pct = (s.marketValue / totalValue) * 100;
         const item = document.createElement('div');
         item.className = 'legend-item';
         item.innerHTML = `
             <span class="legend-color" style="background: ${colors[i]}"></span>
-            <span class="legend-ticker">${h.ticker}</span>
-            <span class="legend-pct">${pct}%</span>
-            <span class="legend-value">${formatCurrency(h.marketValue)}</span>
+            <span class="legend-ticker">${s.ticker}</span>
+            <div class="legend-bar-track">
+                <div class="legend-bar-fill" style="width: ${pct.toFixed(1)}%; background: ${colors[i]}"></div>
+            </div>
+            <span class="legend-pct">${pct.toFixed(1)}%</span>
+            <span class="legend-value">${formatCurrency(s.marketValue)}</span>
         `;
         legendEl.appendChild(item);
     });
@@ -265,8 +293,19 @@ function renderPerformanceChart(holdings) {
         return;
     }
 
-    const labels = holdings.map(h => h.ticker);
-    const gainLossValues = holdings.map(h => h.gainLoss);
+    // Top 5 by absolute gain/loss, rest into "Other"
+    const sorted = [...holdings].sort((a, b) => Math.abs(b.gainLoss) - Math.abs(a.gainLoss));
+    const top5 = sorted.slice(0, 5);
+    const rest = sorted.slice(5);
+    let chartHoldings = top5;
+    if (rest.length > 0) {
+        const otherGainLoss = rest.reduce((sum, h) => sum + h.gainLoss, 0);
+        const otherBookValue = rest.reduce((sum, h) => sum + h.bookValue, 0);
+        chartHoldings = [...top5, { ticker: 'Other', gainLoss: otherGainLoss, bookValue: otherBookValue }];
+    }
+
+    const labels = chartHoldings.map(h => h.ticker);
+    const gainLossValues = chartHoldings.map(h => h.gainLoss);
     const colors = gainLossValues.map(v => v >= 0 ? 'rgba(16, 185, 129, 0.8)' : 'rgba(239, 68, 68, 0.8)');
     const borderColors = gainLossValues.map(v => v >= 0 ? '#059669' : '#dc2626');
 
@@ -291,13 +330,12 @@ function renderPerformanceChart(holdings) {
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            const holding = holdings[context.dataIndex];
+                            const holding = chartHoldings[context.dataIndex];
                             const returnPct = holding.bookValue > 0 ? ((holding.gainLoss / holding.bookValue) * 100).toFixed(2) : 0;
                             return [
                                 `Gain/Loss: ${formatCurrency(context.parsed.y)}`,
                                 `Return: ${returnPct}%`,
                                 `Book: ${formatCurrency(holding.bookValue)}`,
-                                `Market: ${formatCurrency(holding.marketValue)}`
                             ];
                         }
                     }

@@ -240,7 +240,10 @@ ACCOUNT_SLUG_MAP = {
 @app.route('/')
 @login_required
 def dashboard():
-    return render_template('dashboard.html')
+    uid = get_user_id()
+    user_doc = user_ref(uid).get()
+    onboarding_complete = (user_doc.to_dict() or {}).get('onboarding_complete', True)
+    return render_template('dashboard.html', onboarding_complete=onboarding_complete)
 
 @app.route('/signup')
 def signup():
@@ -457,6 +460,7 @@ def signup_account():
             'registered_accounts': personal_info.get('registeredAccounts', []),
             'date_of_birth': None,
             'residency_date': None,
+            'onboarding_complete': False,
             'created_at': datetime.utcnow().isoformat(),
         })
         uid = user_doc_ref.id
@@ -563,6 +567,11 @@ def get_dashboard_data():
             },
             'accounts': {'chequing': chequing_bal, 'cash': cash_bal, 'tfsa': tfsa_value},
             'tfsa': {'value': tfsa_value, 'contributed': tfsa_contributed, 'gain': tfsa_value - tfsa_book},
+            'settings': {
+                'hourlyWage': settings.get('hourly_wage', 0),
+                'hoursPerWeek': settings.get('hours_per_week', 0),
+                'savingsTargetPercent': round(settings.get('savings_target_percent', 0.65) * 100),
+            },
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -588,6 +597,28 @@ def get_spending_breakdown():
             spent = by_cat.get(name, 0)
             result.append({'name': name, 'spent': spent, 'budget': budget, 'percentUsed': (spent / budget) if budget > 0 else 0})
         return jsonify({'categories': result})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/budget-categories')
+@login_required
+def get_budget_categories():
+    try:
+        uid = get_user_id()
+        cats = stream_docs(sub(uid, 'categories'))
+        return jsonify({'categories': [
+            {'id': c['_id'], 'name': c.get('name', ''), 'monthly_budget': float(c.get('monthly_budget', 0))}
+            for c in sorted(cats, key=lambda x: x.get('name', ''))
+        ]})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/complete-onboarding', methods=['POST'])
+@login_required
+def complete_onboarding():
+    try:
+        user_ref(get_user_id()).update({'onboarding_complete': True})
+        return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -1130,7 +1161,7 @@ def add_holding():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/update-holding/<holding_id>', methods=['PUT'])
+@app.route('/api/update-holding/<path:holding_id>', methods=['PUT'])
 @login_required
 def update_holding(holding_id):
     try:
@@ -1154,7 +1185,7 @@ def update_holding(holding_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/delete-holding/<holding_id>', methods=['DELETE'])
+@app.route('/api/delete-holding/<path:holding_id>', methods=['DELETE'])
 @login_required
 def delete_holding(holding_id):
     try:
@@ -1203,21 +1234,17 @@ def update_holding_prices(uid):
         to_update.append(h)
     if not to_update:
         return
-    symbols = [h.get('ticker') for h in to_update]
-    try:
-        data = yf.download(symbols, period='1d', progress=False, threads=False)
-        if not data.empty:
-            for h in to_update:
-                ticker = h.get('ticker')
-                try:
-                    price = float(data['Close'].iloc[-1] if len(symbols) == 1 else data['Close'][ticker].iloc[-1])
-                    sub(uid, 'holdings').document(h['_id']).update({
-                        'current_price': price, 'last_price_update': now.isoformat()
-                    })
-                except (KeyError, IndexError):
-                    pass
-    except Exception as e:
-        print(f'Price update error: {e}')
+    for h in to_update:
+        ticker = h.get('ticker')
+        try:
+            info = yf.Ticker(ticker).fast_info
+            price = float(info['last_price'])
+            if price and price > 0:
+                sub(uid, 'holdings').document(h['_id']).update({
+                    'current_price': price, 'last_price_update': now.isoformat()
+                })
+        except Exception as e:
+            print(f'Price update error for {ticker}: {e}')
 
 
 def _price_update_loop():
@@ -1229,6 +1256,18 @@ def _price_update_loop():
                 update_holding_prices(user_doc.id)
         except Exception as e:
             print(f'Background price loop error: {e}')
+
+
+@app.route('/api/refresh-prices', methods=['POST'])
+@login_required
+def refresh_prices():
+    uid = get_user_id()
+    # Reset last_price_update so all holdings get refreshed
+    for h in stream_docs(sub(uid, 'holdings')):
+        sub(uid, 'holdings').document(h['_id']).update({'last_price_update': None})
+    update_holding_prices(uid)
+    return jsonify({'ok': True})
+
 
 # ===== Diary =====
 
@@ -1441,6 +1480,12 @@ def update_settings():
             sub(uid, 'settings').document('default').set(settings_updates, merge=True)
         if user_updates:
             user_ref(uid).update(user_updates)
+        if 'categories' in data:
+            for cat in data['categories']:
+                if cat.get('id') and cat.get('monthly_budget') is not None:
+                    sub(uid, 'categories').document(cat['id']).update(
+                        {'monthly_budget': float(cat['monthly_budget'])}
+                    )
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500

@@ -383,6 +383,8 @@ async function refreshData() {
 
 // Check if the current month's diary is filled out and show reminder if not
 async function checkDiaryReminder() {
+    // Don't show diary reminder while onboarding is active
+    if (typeof ONBOARDING_COMPLETE !== 'undefined' && !ONBOARDING_COMPLETE) return;
     // Only show once per browser session
     if (sessionStorage.getItem('diaryReminderShown')) return;
     sessionStorage.setItem('diaryReminderShown', 'true');
@@ -413,6 +415,215 @@ document.addEventListener('DOMContentLoaded', function() {
     refreshData();
     checkDiaryReminder();
 
+    if (typeof ONBOARDING_COMPLETE !== 'undefined' && !ONBOARDING_COMPLETE) {
+        obInit();
+    }
+
     // Auto-refresh every 5 minutes
     setInterval(refreshData, 5 * 60 * 1000);
 });
+
+// ===== Onboarding Checklist =====
+
+const obState = {
+    completed: new Set([1]),
+    attempted: new Set([1]),
+    categories: []
+};
+
+async function obInit() {
+    document.getElementById('onboardingModal').classList.add('show');
+    obUpdateProgress();
+
+    // Pre-fill income & savings from dashboard data
+    try {
+        const res = await fetch('/api/dashboard-data');
+        const data = await res.json();
+        if (data.settings) {
+            if (data.settings.hourlyWage) document.getElementById('obHourlyWage').value = data.settings.hourlyWage;
+            if (data.settings.hoursPerWeek) document.getElementById('obHoursPerWeek').value = data.settings.hoursPerWeek;
+            if (data.settings.savingsTargetPercent) document.getElementById('obSavingsTarget').value = data.settings.savingsTargetPercent;
+        }
+    } catch (e) {}
+
+    // Load budget categories for step 5
+    try {
+        const res = await fetch('/api/budget-categories');
+        const data = await res.json();
+        obState.categories = data.categories || [];
+        obRenderCategories(obState.categories);
+    } catch (e) {}
+
+    // Wire up ticker autocomplete (stocks.js is loaded conditionally)
+    if (typeof initializeTickerAutocomplete === 'function') {
+        initializeTickerAutocomplete('obTicker', 'obTickerDropdown', 'obTickerSymbol', 'obTickerName');
+    }
+}
+
+function obToggle(n) {
+    const item = document.getElementById('obStep' + n);
+    if (!item || item.classList.contains('completed')) return;
+    const isExpanded = item.classList.contains('expanded');
+    // Collapse all
+    [2, 3, 4, 5].forEach(i => {
+        const el = document.getElementById('obStep' + i);
+        if (el) el.classList.remove('expanded');
+    });
+    if (!isExpanded) item.classList.add('expanded');
+}
+
+function obUpdateProgress() {
+    const done = obState.completed.size;
+    const pct = (done / 5) * 100;
+    document.getElementById('onboardingProgressFill').style.width = pct + '%';
+    document.getElementById('onboardingProgressLabel').textContent = done + ' / 5 complete';
+    // Enable Done when steps 2–5 are all attempted
+    const allAttempted = [2, 3, 4, 5].every(n => obState.attempted.has(n));
+    document.getElementById('obDoneBtn').disabled = !allAttempted;
+}
+
+function obMarkStep(n) {
+    const item = document.getElementById('obStep' + n);
+    if (!item) return;
+    item.classList.remove('expanded');
+    item.classList.add('completed');
+    obState.completed.add(n);
+    obState.attempted.add(n);
+    obUpdateProgress();
+}
+
+async function obAddHolding() {
+    const ticker = document.getElementById('obTickerSymbol').value ||
+                   document.getElementById('obTicker').value.trim().toUpperCase();
+    const name   = document.getElementById('obTickerName').value || ticker;
+    const accountType = document.getElementById('obAccountType').value;
+    const shares  = parseFloat(document.getElementById('obShares').value);
+    const avgCost = parseFloat(document.getElementById('obAvgCost').value) || 0;
+
+    if (!ticker || isNaN(shares) || shares <= 0) {
+        alert('Please enter a ticker and a valid number of shares.');
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/add-holding', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ticker, name, accountType, shares, avgCost })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        // Show tag
+        const tag = document.createElement('div');
+        tag.className = 'onboarding-holding-tag';
+        tag.innerHTML = `<span><strong>${ticker}</strong> &nbsp;·&nbsp; ${accountType} &nbsp;·&nbsp; ${shares} shares @ $${avgCost.toFixed(2)}</span>`;
+        document.getElementById('obHoldingsList').appendChild(tag);
+
+        // Clear inputs
+        document.getElementById('obTicker').value = '';
+        document.getElementById('obTickerSymbol').value = '';
+        document.getElementById('obTickerName').value = '';
+        document.getElementById('obShares').value = '';
+        document.getElementById('obAvgCost').value = '';
+
+        // Enable "Mark as done"
+        const doneBtn = document.getElementById('obStep2DoneBtn');
+        doneBtn.disabled = false;
+        obState.attempted.add(2);
+        obUpdateProgress();
+    } catch (e) {
+        alert('Failed to add holding: ' + e.message);
+    }
+}
+
+async function obSaveIncome() {
+    const wage  = parseFloat(document.getElementById('obHourlyWage').value);
+    const hours = parseFloat(document.getElementById('obHoursPerWeek').value);
+    if (isNaN(wage) || isNaN(hours) || wage < 0 || hours < 0) {
+        alert('Please enter a valid wage and hours per week.');
+        return;
+    }
+    try {
+        const res = await fetch('/api/settings/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hourlyWage: wage, hoursPerWeek: hours })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        document.getElementById('obStep3Success').classList.add('show');
+        setTimeout(() => obMarkStep(3), 700);
+    } catch (e) {
+        alert('Failed to save: ' + e.message);
+    }
+}
+
+async function obSaveSavings() {
+    const pct = parseFloat(document.getElementById('obSavingsTarget').value);
+    if (isNaN(pct) || pct < 0 || pct > 100) {
+        alert('Please enter a valid savings percentage between 0 and 100.');
+        return;
+    }
+    try {
+        const res = await fetch('/api/settings/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ savingsTargetPercent: pct / 100 })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        document.getElementById('obStep4Success').classList.add('show');
+        setTimeout(() => obMarkStep(4), 700);
+    } catch (e) {
+        alert('Failed to save: ' + e.message);
+    }
+}
+
+function obRenderCategories(categories) {
+    const container = document.getElementById('obCategoriesList');
+    if (!container) return;
+    if (!categories.length) {
+        container.innerHTML = '<span class="onboarding-step-hint">No categories found.</span>';
+        return;
+    }
+    container.innerHTML = categories.map(cat => `
+        <div class="onboarding-form-group">
+            <label>${cat.name} ($/month)</label>
+            <input type="number" class="ob-cat-input" data-cat-id="${cat.id}"
+                   value="${cat.monthly_budget}" min="0" step="1">
+        </div>
+    `).join('');
+}
+
+async function obSaveBudget() {
+    const inputs = document.querySelectorAll('.ob-cat-input');
+    const categories = Array.from(inputs).map(inp => ({
+        id: inp.dataset.catId,
+        monthly_budget: parseFloat(inp.value) || 0
+    }));
+    try {
+        const res = await fetch('/api/settings/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ categories })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        document.getElementById('obStep5Success').classList.add('show');
+        setTimeout(() => obMarkStep(5), 700);
+    } catch (e) {
+        alert('Failed to save budget: ' + e.message);
+    }
+}
+
+async function obComplete() {
+    try {
+        await fetch('/api/complete-onboarding', { method: 'POST' });
+    } catch (e) {}
+    document.getElementById('onboardingModal').classList.remove('show');
+}
+
+function obSkip() {
+    obComplete();
+}

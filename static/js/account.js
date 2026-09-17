@@ -206,10 +206,10 @@ function renderHoldings(holdings) {
             <td class="${glCls}">${fmtCur(h.gainLoss)}</td>
             <td><span class="return-badge ${rCls}">${rPct >= 0 ? '+' : ''}${rPct.toFixed(2)}%</span></td>
             <td class="actions-cell">
-                <button class="btn-icon btn-edit" onclick="openEditHolding(${h.id}, '${h.ticker}', '${safeName}', ${h.totalShares}, ${h.avgCost})" title="Edit">
+                <button class="btn-icon btn-edit" onclick="openEditHolding('${h.id}', '${h.ticker}', '${safeName}', ${h.totalShares}, ${h.avgCost})" title="Edit">
                     <i class="fas fa-pen"></i>
                 </button>
-                <button class="btn-icon btn-delete" onclick="openDeleteHolding(${h.id}, '${h.ticker}')" title="Delete">
+                <button class="btn-icon btn-delete" onclick="openDeleteHolding('${h.id}', '${h.ticker}')" title="Delete">
                     <i class="fas fa-trash"></i>
                 </button>
             </td>`;
@@ -447,6 +447,18 @@ async function refreshData() {
     }
 }
 
+async function forceRefreshPrices() {
+    document.getElementById('loadingOverlay').classList.remove('hidden');
+    try {
+        await fetch('/api/refresh-prices', { method: 'POST' });
+        await refreshData();
+    } catch (err) {
+        console.error('Error refreshing prices:', err);
+    } finally {
+        document.getElementById('loadingOverlay').classList.add('hidden');
+    }
+}
+
 // ===== Add Holding Modal =====
 
 function showAddHoldingModal() {
@@ -466,6 +478,7 @@ function closeAddHoldingModal() {
 function openEditHolding(id, ticker, name, shares, avgCost) {
     document.getElementById('editHoldingId').value = id;
     document.getElementById('editHoldingTicker').value = ticker;
+    document.getElementById('editHoldingTickerInput').value = ticker;
     document.getElementById('editHoldingName').value = name;
     document.getElementById('editHoldingShares').value = shares;
     document.getElementById('editHoldingAvgCost').value = avgCost;
@@ -474,6 +487,8 @@ function openEditHolding(id, ticker, name, shares, avgCost) {
 
 function closeEditHoldingModal() {
     document.getElementById('editHoldingModal').classList.remove('show');
+    document.getElementById('editHoldingTickerDropdown').innerHTML = '';
+    document.getElementById('editHoldingTickerDropdown').classList.remove('show');
 }
 
 // ===== Delete (holdings, deposits, trades) =====
@@ -773,6 +788,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Ticker autocomplete (reuses function from stocks.js)
     initializeTickerAutocomplete('holdingTicker', 'holdingTickerDropdown', 'holdingTickerSymbol', 'holdingName');
+    initializeTickerAutocomplete('editHoldingTickerInput', 'editHoldingTickerDropdown', 'editHoldingTicker', 'editHoldingName');
 
     refreshData();
     setInterval(refreshData, 5 * 60 * 1000);
