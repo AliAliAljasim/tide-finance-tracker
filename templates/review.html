@@ -5,7 +5,7 @@
     <div class="page-head">
         <div>
             <h1 class="page-title">Review transactions</h1>
-            <p class="page-sub" id="reviewSub">Check the parsed rows below. Red rows failed balance/date validation; amber rows look like duplicates &mdash; flagged rows need a look before you confirm.</p>
+            <p class="page-sub" id="reviewSub">Check the parsed rows below. Red rows failed balance or date validation. Amber rows look like duplicates. Fix what needs fixing before you confirm.</p>
         </div>
         <div class="page-actions">
             <button type="button" id="addRowBtn" class="btn btn-outline">+ Add row</button>
@@ -16,7 +16,7 @@
 
     <div id="statementBanner" class="card hidden" style="margin-bottom:20px;border-color:var(--neg);"></div>
 
-    <div class="card" style="padding:0;overflow-x:auto;">
+    <div class="card table-card" style="padding:0;overflow-x:auto;">
         <table class="table" id="txTable">
             <thead>
                 <tr>

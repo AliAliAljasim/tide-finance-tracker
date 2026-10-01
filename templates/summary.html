@@ -4,16 +4,18 @@
 <style>
   .viz-root {
     color-scheme: light;
-    --surface-1: #fcfcfb;
-    --text-primary: #0b0b0b;
-    --text-secondary: #52514e;
-    --text-muted: #898781;
-    --grid-line: #e1e0d9;
-    --axis-line: #c3c2b7;
-    --series-income: #1F7A4D;
-    --series-expense: #B4432F;
+    --surface-1: var(--surface);
+    --text-primary: var(--ink);
+    --text-secondary: var(--muted);
+    --text-muted: #94A299;
+    --grid-line: var(--line);
+    --axis-line: #A9BBA2;
+    /* Same ledger convention as everywhere else: credits in blue-black ink,
+       debits in red — no separate green for "positive." */
+    --series-income: var(--pos);
+    --series-expense: var(--neg);
     --cat-1: #2a78d6; --cat-2: #eb6834; --cat-3: #1baf7a; --cat-4: #eda100;
-    --cat-5: #e87ba4; --cat-6: #008300; --cat-7: #4a3aa7; --cat-other: #898781;
+    --cat-5: #e87ba4; --cat-6: #008300; --cat-7: #4a3aa7; --cat-other: var(--muted);
   }
   .viz-card { background: var(--surface-1); }
   .viz-legend { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
@@ -61,10 +63,10 @@
         </div>
     </div>
 
-    <div class="card card-lg viz-card" style="margin-bottom:28px;">
+    <div class="card card-lg viz-card table-card" style="margin-bottom:28px;">
         <div class="page-head" style="margin-bottom:16px;">
             <div>
-                <h2 style="font:600 18px var(--font-display);">Income vs. expenses</h2>
+                <h2 style="font:700 17px var(--font-display);">Income vs. expenses</h2>
             </div>
             <div class="page-actions">
                 <label class="field"><span>From</span><input type="month" id="monthlyFrom" class="input"></label>
@@ -83,10 +85,10 @@
         </table>
     </div>
 
-    <div class="card card-lg viz-card">
+    <div class="card card-lg viz-card table-card">
         <div class="page-head" style="margin-bottom:16px;">
             <div>
-                <h2 style="font:600 18px var(--font-display);">Spending by category</h2>
+                <h2 style="font:700 17px var(--font-display);">Spending by category</h2>
                 <p class="page-sub" style="font-size:13px;">Click a bar to see its transactions.</p>
             </div>
             <div class="page-actions">
@@ -101,7 +103,7 @@
         </table>
 
         <div id="categoryDrilldown" class="hidden" style="margin-top:20px;border-top:1px solid var(--line);padding-top:16px;">
-            <h3 id="drilldownTitle" style="font:600 15px var(--font-body);margin-bottom:10px;"></h3>
+            <h3 id="drilldownTitle" style="font:700 15px var(--font-body);margin-bottom:10px;"></h3>
             <table class="table" id="drilldownTable">
                 <thead><tr><th>Date</th><th>Description</th><th class="num">Amount</th></tr></thead>
                 <tbody id="drilldownBody"></tbody>

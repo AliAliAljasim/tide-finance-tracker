@@ -56,13 +56,13 @@ function rowHtml(tx) {
     let rowStyle = '';
     let banner = '';
     if (tx.flagged) {
-        rowStyle = ' style="background:#FBEAE9;"';
+        rowStyle = ' style="background:#F7E7E3;"';
         banner = `<div style="font-size:12px;color:var(--neg);margin-top:4px;">${escapeHtml(tx.flag_reason)}</div>`;
     } else if (tx.is_duplicate) {
-        rowStyle = ' style="background:#FDF3DC;"';
-        banner = `<div style="font-size:12px;color:#8A6400;margin-top:4px;">Looks like a duplicate of an existing transaction.
-            <button type="button" class="link dup-keep" style="background:none;border:0;cursor:pointer;">Keep</button> &middot;
-            <button type="button" class="link dup-skip" style="background:none;border:0;cursor:pointer;color:var(--neg);">Skip</button></div>`;
+        rowStyle = ' style="background:#F2EBD9;"';
+        banner = `<div style="font-size:12px;color:var(--accent);margin-top:4px;">This looks like a duplicate of an existing transaction.
+            <button type="button" class="link dup-keep" style="background:none;border:0;cursor:pointer;margin-left:8px;">Keep</button>
+            <button type="button" class="link dup-skip" style="background:none;border:0;cursor:pointer;color:var(--neg);margin-left:10px;">Skip</button></div>`;
     }
     return `
     <tr data-id="${tx._id}" data-duplicate="${tx.is_duplicate ? 'true' : 'false'}"${rowStyle}>

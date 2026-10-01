@@ -151,7 +151,10 @@ function renderMonthlyChart(months) {
     </svg>`;
 
     const tips = {};
-    months.forEach((m, i) => { tips[`inc-${i}`] = `${monthLabel(m.month)} &middot; Income ${money(m.income)}`; tips[`exp-${i}`] = `${monthLabel(m.month)} &middot; Expenses ${money(m.expenses)}`; });
+    months.forEach((m, i) => {
+        tips[`inc-${i}`] = `${monthLabel(m.month)}<br>Income ${money(m.income)}`;
+        tips[`exp-${i}`] = `${monthLabel(m.month)}<br>Expenses ${money(m.expenses)}`;
+    });
     container.querySelectorAll('[data-tip]').forEach(el => {
         el.addEventListener('mousemove', evt => showTooltip(evt, tips[el.dataset.tip]));
         el.addEventListener('mouseleave', hideTooltip);
@@ -247,8 +250,8 @@ function renderCategoryChart(rows, month) {
         const row = rows[Number(el.dataset.idx)];
         el.addEventListener('mousemove', evt => {
             const tip = row.category_id
-                ? `${escapeHtml(row.category)} &middot; ${money(row.total)}`
-                : `${escapeHtml(row.category)} &middot; ${money(row.total)}<br>${(row.breakdown || []).map(b => `${escapeHtml(b.category)}: ${money(b.total)}`).join('<br>')}`;
+                ? `${escapeHtml(row.category)}<br>${money(row.total)}`
+                : `${escapeHtml(row.category)}<br>${money(row.total)}<br>${(row.breakdown || []).map(b => `${escapeHtml(b.category)}: ${money(b.total)}`).join('<br>')}`;
             showTooltip(evt, tip);
         });
         el.addEventListener('mouseleave', hideTooltip);
@@ -261,7 +264,7 @@ function renderCategoryChart(rows, month) {
 async function loadDrilldown(row, month) {
     const res = await fetch(`/api/summary/categories/transactions?month=${month}&category_id=${row.category_id}&account=${currentAccount()}`);
     const data = await res.json();
-    document.getElementById('drilldownTitle').textContent = `${row.category} — ${monthLabel(month)}`;
+    document.getElementById('drilldownTitle').textContent = `${row.category} in ${monthLabel(month)}`;
     document.getElementById('drilldownBody').innerHTML = (data.transactions || []).map(t => `
         <tr><td class="mono">${escapeHtml(t.date)}</td><td>${escapeHtml(t.description)}</td><td class="num">${money(t.amount)}</td></tr>
     `).join('') || '<tr><td colspan="3" class="muted">No transactions.</td></tr>';

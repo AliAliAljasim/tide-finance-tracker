@@ -32,7 +32,7 @@ async function loadAccounts() {
         const balanceClass = isCard ? (a.current_balance > 0 ? 'neg' : 'pos') : (a.current_balance < 0 ? 'neg' : 'pos');
         const balanceLabel = isCard ? 'Balance owed' : 'Current balance';
         return `
-        <div class="card card-lg account-card" style="width:280px;">
+        <div class="card card-lg ledger-card account-card" style="width:280px;">
             <div class="label">${TYPE_LABELS[a.type] || a.type}</div>
             <a href="/accounts/${a._id}" class="link" style="font:600 20px var(--font-display);color:var(--ink);text-decoration:none;display:block;margin-top:4px;">${escapeHtml(a.name)}</a>
             <div class="muted" style="font-size:13px;margin-top:2px;">${escapeHtml(a.institution || 'No institution set')}</div>

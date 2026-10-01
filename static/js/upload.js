@@ -20,13 +20,16 @@ async function loadStatements() {
         body.innerHTML = '<tr><td colspan="4" class="muted">No statements yet.</td></tr>';
         return;
     }
+    const STATUS_LABEL = { processing: 'Processing', parsed: 'Ready to review', confirmed: 'Confirmed', failed: 'Failed' };
     body.innerHTML = statements.map(s => {
         const uploaded = (s.created_at || '').slice(0, 10);
-        const statusPill = `<span class="pill">${escapeHtml(s.status)}</span>`;
+        const status = (s.status === 'confirmed' || s.status === 'failed')
+            ? `<span class="stamp stamp-${s.status}">${STATUS_LABEL[s.status]}</span>`
+            : `<span class="pill">${STATUS_LABEL[s.status] || s.status}</span>`;
         const action = s.status === 'failed'
-            ? '<span class="muted">Failed &mdash; please re-upload</span>'
+            ? '<span class="muted">Please upload it again.</span>'
             : `<a href="/review/${s._id}" class="link">Review</a>`;
-        return `<tr><td class="mono">${uploaded}</td><td>${escapeHtml(s.account_name)}</td><td>${statusPill}</td><td>${action}</td></tr>`;
+        return `<tr><td class="mono">${uploaded}</td><td>${escapeHtml(s.account_name)}</td><td>${status}</td><td>${action}</td></tr>`;
     }).join('');
 }
 
