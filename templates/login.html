@@ -8,17 +8,17 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
 </head>
 <body>
     <div class="auth-split">
         <aside class="auth-panel">
             <a href="/" class="brand auth-brand">Tide</a>
             <div>
-                <h2 class="auth-headline">Know where your money goes, and where it is headed.</h2>
-                <p class="auth-lede">Budget, savings goals and registered accounts in one quiet place.</p>
+                <h2 class="auth-headline">Upload a statement, get transactions back.</h2>
+                <p class="auth-lede">AI reads your PDF or scanned statement so you don't have to retype it.</p>
             </div>
-            <div class="auth-foot mono">TFSA &middot; FHSA &middot; Net worth &middot; Diary</div>
+            <div class="auth-foot mono">PDF &middot; JPG &middot; PNG &middot; AI-parsed</div>
         </aside>
 
         <main class="auth-main">
@@ -26,7 +26,9 @@
                 <h1 class="auth-title">Welcome back</h1>
                 <p class="auth-sub">Sign in to continue.</p>
 
-                <form id="loginForm" class="stack auth-form">
+                {% if error %}<div class="form-error">{{ error }}</div>{% endif %}
+
+                <form id="loginForm" class="stack auth-form" method="post" action="/login">
                     <label class="field">
                         <span>Email</span>
                         <input type="email" id="email" name="email" class="input" placeholder="you@example.com" required autofocus>
@@ -35,9 +37,10 @@
                         <span>Password</span>
                         <input type="password" id="password" name="password" class="input" placeholder="Enter your password" required>
                     </label>
+                    <div id="loginError" class="form-error hidden"></div>
                     <button type="submit" class="btn btn-primary btn-block auth-submit">Sign in</button>
                     <div class="auth-center">
-                        <a href="#" class="link" onclick="openResetModal(); return false;">Forgot password?</a>
+                        <a href="/forgot-password" class="link">Forgot password?</a>
                     </div>
                 </form>
 
@@ -46,36 +49,11 @@
         </main>
     </div>
 
-    <div id="resetModal" class="modal show hidden">
-        <div class="modal-box">
-            <div class="modal-head">
-                <span class="modal-title">Reset password</span>
-                <button type="button" class="modal-close" onclick="closeResetModal()" aria-label="Close">&times;</button>
-            </div>
-            <div class="modal-body stack">
-                <label class="field">
-                    <span>Email</span>
-                    <input type="email" id="resetEmail" class="input" placeholder="Enter your email">
-                </label>
-                <label class="field">
-                    <span>New password</span>
-                    <input type="password" id="resetNewPassword" class="input" placeholder="Enter new password">
-                </label>
-                <label class="field">
-                    <span>Confirm password</span>
-                    <input type="password" id="resetConfirmPassword" class="input" placeholder="Confirm new password">
-                </label>
-                <div id="resetError" class="form-error hidden"></div>
-                <button type="button" class="btn btn-primary btn-block" onclick="submitReset()">Reset password</button>
-            </div>
-        </div>
-    </div>
-
     <div id="loadingOverlay" class="loading-overlay hidden">
         <div class="spinner"></div>
         <p>Signing in...</p>
     </div>
 
-    <script src="{{ url_for('static', filename='js/login.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
 </body>
 </html>

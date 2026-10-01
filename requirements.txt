@@ -1,3 +1,9 @@
 Flask==3.0.3
 werkzeug
-yfinance
+bcrypt
+itsdangerous
+pdfplumber
+pytesseract
+Pillow
+anthropic
+pytest

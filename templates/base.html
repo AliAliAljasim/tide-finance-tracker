@@ -15,18 +15,13 @@
         <a href="/" class="brand">Tide</a>
         <nav class="site-nav" aria-label="Main">
             {% set p = request.path %}
-            <a href="/" class="{{ 'active' if p == '/' else '' }}">Dashboard</a>
-            <a href="/stocks" class="{{ 'active' if p == '/stocks' or p.startswith('/investments') else '' }}">Investments</a>
-            <a href="/networth" class="{{ 'active' if p == '/networth' else '' }}">Net worth</a>
-            <a href="/diary" class="{{ 'active' if p == '/diary' else '' }}">Diary</a>
+            <a href="/upload" class="{{ 'active' if p == '/upload' else '' }}">Upload statement</a>
         </nav>
         <div class="header-right">
             {% block header_actions %}{% endblock %}
             <details class="user-menu">
-                <summary aria-label="Account menu">{{ (session.user_name or 'A')[:1] | upper }}</summary>
+                <summary aria-label="Account menu">{{ (session.user_email or 'A')[:1] | upper }}</summary>
                 <div class="user-menu-list">
-                    <a href="/profile">My profile</a>
-                    <a href="/settings">Settings</a>
                     <a href="/logout" class="danger">Log out</a>
                 </div>
             </details>
