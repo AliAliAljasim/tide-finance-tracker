@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create your account - Statement Parser</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+</head>
+<body>
+    <div class="auth-split">
+        <aside class="auth-panel">
+            <a href="/" class="brand auth-brand">Statement Parser</a>
+            <div>
+                <h2 class="auth-headline">Your statements, parsed automatically.</h2>
+                <p class="auth-lede">Create an account to upload bank statements and let AI extract the transactions.</p>
+            </div>
+            <div class="auth-foot mono">Private to you &middot; Passwords are hashed</div>
+        </aside>
+
+        <main class="auth-main">
+            <div class="auth-form-wrap">
+                <h1 class="auth-title">Create your account</h1>
+                <p class="auth-sub">It only takes a moment.</p>
+
+                <form id="signupForm" class="stack auth-form">
+                    <label class="field">
+                        <span>Email</span>
+                        <input type="email" id="email" name="email" class="input" placeholder="you@example.com" required autofocus>
+                    </label>
+                    <label class="field">
+                        <span>Password</span>
+                        <input type="password" id="password" name="password" class="input" placeholder="At least 8 characters" minlength="8" required>
+                        <span class="su-hint" style="display:block;font-size:12px;color:var(--muted);margin-top:6px;">At least 8 characters.</span>
+                    </label>
+                    <label class="field">
+                        <span>Confirm password</span>
+                        <input type="password" id="confirmPassword" class="input" placeholder="Confirm your password" minlength="8" required>
+                    </label>
+                    <div id="signupError" class="form-error hidden"></div>
+                    <button type="submit" class="btn btn-primary btn-block auth-submit">Create account</button>
+                </form>
+
+                <p class="auth-switch">Already have an account? <a href="/login" class="link">Sign in</a></p>
+            </div>
+        </main>
+    </div>
+
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <p>Setting up your account...</p>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/signup.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Review transactions - Statement Parser{% endblock %}
+{% block content %}
+<div class="page" data-statement-id="{{ statement_id }}">
+    <div class="page-head">
+        <div>
+            <h1 class="page-title">Review transactions</h1>
+            <p class="page-sub" id="reviewSub">Check the parsed rows below. Flagged rows need a look before you confirm.</p>
+        </div>
+        <div class="page-actions">
+            <button type="button" id="addRowBtn" class="btn btn-outline">+ Add row</button>
+            <button type="button" id="discardBtn" class="btn btn-ghost">Discard</button>
+            <button type="button" id="confirmBtn" class="btn btn-primary">Confirm &amp; save</button>
+        </div>
+    </div>
+
+    <div id="statementBanner" class="card hidden" style="margin-bottom:20px;border-color:var(--neg);"></div>
+
+    <div class="card" style="padding:0;overflow-x:auto;">
+        <table class="table" id="txTable">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th class="num">Amount</th>
+                    <th>Type</th>
+                    <th class="num">Balance</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="txBody">
+                <tr><td colspan="6" class="muted">Loading&hellip;</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/review.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,11 @@
+*.json
+__pycache__/
+*.pyc
+*.db
+*.sqlite
+flask_session/
+.env
+instance/
+.claude/
+.venv/
+CLAUDE.md

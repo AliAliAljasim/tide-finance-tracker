@@ -1,0 +1,9 @@
+Flask==3.0.3
+werkzeug
+bcrypt
+itsdangerous
+pdfplumber
+pytesseract
+Pillow
+anthropic
+pytest
