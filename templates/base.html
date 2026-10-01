@@ -15,7 +15,9 @@
         <a href="/" class="brand">Statement Parser</a>
         <nav class="site-nav" aria-label="Main">
             {% set p = request.path %}
+            <a href="/accounts" class="{{ 'active' if p == '/accounts' or p.startswith('/accounts/') else '' }}">Accounts</a>
             <a href="/upload" class="{{ 'active' if p == '/upload' else '' }}">Upload statement</a>
+            <a href="/summary" class="{{ 'active' if p == '/summary' else '' }}">Summary</a>
         </nav>
         <div class="header-right">
             {% block header_actions %}{% endblock %}

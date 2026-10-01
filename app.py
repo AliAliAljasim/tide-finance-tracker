@@ -10,6 +10,7 @@ import uuid
 from functools import wraps
 from firestore_db import fs
 from parsing import extract_text, mask_account_numbers, parse_statement_text, validate_transactions, ParsingError
+from categorization import DEFAULT_CATEGORIES, categorize_transactions, detect_duplicates, normalize_merchant
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-finance-app-secret-key-change-in-production')
@@ -24,6 +25,8 @@ app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # US-04: 10 MB upload cap
 UPLOAD_DIR = os.path.join(app.root_path, 'instance', 'uploads')
 ALLOWED_EXTENSIONS = {'.pdf', '.jpg', '.jpeg', '.png'}
 RESET_TOKEN_MAX_AGE = 60 * 60  # 1 hour, per US-03
+ACCOUNT_TYPES = {'chequing', 'savings', 'credit_card'}
+MAX_SUMMARY_MONTHS = 36  # guard against a huge/garbage from->to range
 
 reset_serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'], salt='password-reset')
 
@@ -56,6 +59,60 @@ def stream_docs(query):
 def find_user_by_email(email):
     users = list(fs.collection('users').where('email', '==', email).limit(1).stream())
     return users[0] if users else None
+
+def now_iso():
+    return datetime.now(timezone.utc).isoformat()
+
+# ===== Categories (global, not per-user — Sprint2.md's `categories` table) =====
+# Seeded once; shared across every user, same as a real app's lookup table would be.
+
+def get_categories():
+    cats = stream_docs(fs.collection('categories'))
+    if not cats:
+        for c in DEFAULT_CATEGORIES:
+            fs.collection('categories').add({'name': c['name'], 'kind': c['kind'], 'is_default': True, 'created_at': now_iso()})
+        cats = stream_docs(fs.collection('categories'))
+    return cats
+
+def categories_by_name():
+    return {c['name']: c for c in get_categories()}
+
+def categories_by_id():
+    return {c['_id']: c for c in get_categories()}
+
+# ===== Merchant rules (US-12) =====
+
+def get_merchant_rules(uid):
+    """{merchant_key: category_id} for this user. Doc id *is* the merchant_key."""
+    return {r['_id']: r.get('category_id') for r in stream_docs(sub(uid, 'merchant_rules'))}
+
+def upsert_merchant_rule(uid, merchant_key, category_id):
+    if not merchant_key:
+        return
+    sub(uid, 'merchant_rules').document(merchant_key).set({
+        'merchant_key': merchant_key, 'category_id': category_id, 'updated_at': now_iso(),
+    })
+
+# ===== Account balances (US-10) =====
+
+def recompute_account_balance(uid, account_id):
+    acc_ref = sub(uid, 'accounts').document(account_id)
+    acc = acc_ref.get().to_dict()
+    if not acc:
+        return None
+    txs = [t for t in stream_docs(sub(uid, 'transactions'))
+           if t.get('account_id') == account_id and t.get('confirmed')]
+    credits = sum(float(t.get('amount') or 0) for t in txs if t.get('type') == 'credit')
+    debits = sum(float(t.get('amount') or 0) for t in txs if t.get('type') == 'debit')
+    opening = float(acc.get('opening_balance') or 0)
+    if acc.get('type') == 'credit_card':
+        # Balance *owed*: charges (debits) increase it, payments (credits) reduce it.
+        balance = opening + debits - credits
+    else:
+        balance = opening + credits - debits
+    balance = round(balance, 2)
+    acc_ref.update({'current_balance': balance})
+    return balance
 
 # ===== Auth helpers =====
 
@@ -103,6 +160,30 @@ def allowed_upload(filename, content_length):
         return False, 'File is too large. The limit is 10 MB.'
     return True, ''
 
+def valid_account_fields(data, partial=False):
+    """Returns (fields, error). `partial`=True allows a subset (PUT)."""
+    fields = {}
+    if 'name' in data or not partial:
+        name = (data.get('name') or '').strip()
+        if not name:
+            return None, 'Account name is required.'
+        fields['name'] = name
+    if 'type' in data or not partial:
+        acc_type = (data.get('type') or '').strip().lower()
+        if acc_type not in ACCOUNT_TYPES:
+            return None, 'Account type must be chequing, savings or credit_card.'
+        fields['type'] = acc_type
+    if 'institution' in data:
+        fields['institution'] = (data.get('institution') or '').strip()
+    elif not partial:
+        fields['institution'] = ''
+    if 'opening_balance' in data or not partial:
+        try:
+            fields['opening_balance'] = round(float(data.get('opening_balance') or 0), 2)
+        except (TypeError, ValueError):
+            return None, 'Opening balance must be a number.'
+    return fields, None
+
 @app.errorhandler(413)
 def too_large(e):
     if request.path.startswith('/api/'):
@@ -113,18 +194,18 @@ def too_large(e):
 
 @app.route('/')
 def index():
-    return redirect(url_for('upload_page') if 'user_id' in session else url_for('login'))
+    return redirect(url_for('accounts_page') if 'user_id' in session else url_for('login'))
 
 @app.route('/signup')
 def signup():
     if 'user_id' in session:
-        return redirect(url_for('upload_page'))
+        return redirect(url_for('accounts_page'))
     return render_template('signup.html')
 
 @app.route('/login')
 def login():
     if 'user_id' in session:
-        return redirect(url_for('upload_page'))
+        return redirect(url_for('accounts_page'))
     return render_template('login.html')
 
 @app.route('/logout')
@@ -145,6 +226,19 @@ def reset_password_page(token):
         token_valid = False
     return render_template('reset_password.html', token=token, token_valid=token_valid)
 
+@app.route('/accounts')
+@login_required
+def accounts_page():
+    return render_template('accounts.html')
+
+@app.route('/accounts/<account_id>')
+@login_required
+def account_detail_page(account_id):
+    uid = get_user_id()
+    if not sub(uid, 'accounts').document(account_id).get().exists:
+        return redirect(url_for('accounts_page'))
+    return render_template('account_detail.html', account_id=account_id)
+
 @app.route('/upload')
 @login_required
 def upload_page():
@@ -158,6 +252,11 @@ def review_page(statement_id):
     if not doc.exists:
         return redirect(url_for('upload_page'))
     return render_template('review.html', statement_id=statement_id)
+
+@app.route('/summary')
+@login_required
+def summary_page():
+    return render_template('summary.html')
 
 # ===== Auth API =====
 
@@ -178,7 +277,7 @@ def api_signup():
     _, user_doc_ref = fs.collection('users').add({
         'email': email,
         'password_hash': hash_password(password),
-        'created_at': datetime.now(timezone.utc).isoformat(),
+        'created_at': now_iso(),
     })
     uid = user_doc_ref.id
     session.permanent = True
@@ -250,29 +349,104 @@ def api_reset_password():
     doc_ref.update({'password_hash': hash_password(password)})
     return jsonify({'success': True})
 
-# ===== Accounts (US-04: "a simple account name/type is enough for Sprint 1") =====
+# ===== Categories =====
+
+@app.route('/api/categories', methods=['GET'])
+@login_required
+def api_list_categories():
+    return jsonify({'categories': get_categories()})
+
+# ===== Accounts (US-09) =====
 
 @app.route('/api/accounts', methods=['GET'])
 @login_required
 def api_list_accounts():
     uid = get_user_id()
-    return jsonify({'accounts': stream_docs(sub(uid, 'accounts'))})
+    accounts = stream_docs(sub(uid, 'accounts'))
+    accounts.sort(key=lambda a: a.get('created_at', ''))
+    return jsonify({'accounts': accounts})
 
 @app.route('/api/accounts', methods=['POST'])
 @login_required
 def api_create_account():
     uid = get_user_id()
     data = request.get_json(silent=True) or {}
-    name = (data.get('name') or '').strip()
-    acc_type = (data.get('type') or 'Other').strip()
-    if not name:
-        return jsonify({'error': 'Account name is required.'}), 400
-    _, ref = sub(uid, 'accounts').add({
-        'name': name, 'type': acc_type, 'created_at': datetime.now(timezone.utc).isoformat(),
-    })
-    return jsonify({'success': True, 'account': {'_id': ref.id, 'name': name, 'type': acc_type}})
+    fields, error = valid_account_fields(data)
+    if error:
+        return jsonify({'error': error}), 400
+    fields['current_balance'] = fields['opening_balance']
+    fields['created_at'] = now_iso()
+    _, ref = sub(uid, 'accounts').add(fields)
+    return jsonify({'success': True, 'account': {**fields, '_id': ref.id}})
 
-# ===== Statement upload & AI parsing pipeline (US-04, US-05, US-06) =====
+@app.route('/api/accounts/<account_id>', methods=['GET'])
+@login_required
+def api_get_account(account_id):
+    uid = get_user_id()
+    doc = sub(uid, 'accounts').document(account_id).get()
+    if not doc.exists:
+        return jsonify({'error': 'Account not found.'}), 404
+    account = doc.to_dict()
+    account['_id'] = account_id
+
+    cats_by_id = categories_by_id()
+    txs = [t for t in stream_docs(sub(uid, 'transactions'))
+           if t.get('account_id') == account_id and t.get('confirmed')]
+    for t in txs:
+        t['category_name'] = cats_by_id.get(t.get('category_id'), {}).get('name', 'Other')
+    txs.sort(key=lambda t: t.get('date', ''), reverse=True)
+
+    return jsonify({'account': account, 'transactions': txs})
+
+@app.route('/api/accounts/<account_id>', methods=['PUT'])
+@login_required
+def api_update_account(account_id):
+    uid = get_user_id()
+    ref = sub(uid, 'accounts').document(account_id)
+    if not ref.get().exists:
+        return jsonify({'error': 'Account not found.'}), 404
+    data = request.get_json(silent=True) or {}
+    fields, error = valid_account_fields(data, partial=True)
+    if error:
+        return jsonify({'error': error}), 400
+    if fields:
+        ref.update(fields)
+    if 'opening_balance' in fields or 'type' in fields:
+        recompute_account_balance(uid, account_id)
+    return jsonify({'success': True, 'account': ref.get().to_dict()})
+
+@app.route('/api/accounts/<account_id>', methods=['DELETE'])
+@login_required
+def api_delete_account(account_id):
+    uid = get_user_id()
+    ref = sub(uid, 'accounts').document(account_id)
+    if not ref.get().exists:
+        return jsonify({'error': 'Account not found.'}), 404
+
+    force = request.args.get('force') == 'true' or (request.get_json(silent=True) or {}).get('force') is True
+    tx_sub = sub(uid, 'transactions')
+    account_txs = [t for t in stream_docs(tx_sub) if t.get('account_id') == account_id]
+
+    if account_txs and not force:
+        return jsonify({
+            'error': f'This account has {len(account_txs)} transaction(s). Delete it anyway?',
+            'confirm_required': True,
+            'transaction_count': len(account_txs),
+        }), 409
+
+    stmt_sub = sub(uid, 'statements')
+    for s in stream_docs(stmt_sub):
+        if s.get('account_id') == account_id:
+            file_path = s.get('file_path')
+            if file_path and os.path.exists(file_path):
+                os.remove(file_path)
+            stmt_sub.document(s['_id']).delete()
+    for t in account_txs:
+        tx_sub.document(t['_id']).delete()
+    ref.delete()
+    return jsonify({'success': True})
+
+# ===== Statement upload & AI parsing pipeline (US-04, US-05, US-06, US-10) =====
 
 @app.route('/api/statements', methods=['GET'])
 @login_required
@@ -323,7 +497,7 @@ def api_upload():
         'period_start': period_start,
         'period_end': period_end,
         'status': 'processing',
-        'created_at': datetime.now(timezone.utc).isoformat(),
+        'created_at': now_iso(),
     })
 
     try:
@@ -344,6 +518,16 @@ def api_upload():
             parsed.get('closing_balance'),
             period_start, period_end,
         )
+
+        # US-11: categorize (merchant rule -> keyword -> batched LLM -> default).
+        categorize_transactions(transactions, categories_by_name(), get_merchant_rules(uid))
+
+        # US-08: flag rows that match an already-confirmed transaction in this
+        # account (same date, amount, merchant_key) — e.g. a re-uploaded,
+        # overlapping statement.
+        existing_confirmed = [t for t in stream_docs(sub(uid, 'transactions'))
+                               if t.get('account_id') == account_id and t.get('confirmed')]
+        detect_duplicates(transactions, existing_confirmed)
     except ParsingError as e:
         os.remove(file_path)
         statements_ref.document(statement_id).update({'status': 'failed', 'error': str(e)})
@@ -356,7 +540,7 @@ def api_upload():
 
     tx_sub = sub(uid, 'transactions')
     for tx in transactions:
-        tx_sub.add({**tx, 'account_id': account_id, 'statement_id': statement_id})
+        tx_sub.add({**tx, 'account_id': account_id, 'statement_id': statement_id, 'confirmed': False})
 
     statements_ref.document(statement_id).update({
         'status': 'parsed',
@@ -378,9 +562,12 @@ def api_get_statement(statement_id):
         return jsonify({'error': 'Statement not found.'}), 404
     statement = doc.to_dict()
     statement['_id'] = statement_id
+    cats_by_id = categories_by_id()
     transactions = [t for t in stream_docs(sub(uid, 'transactions')) if t.get('statement_id') == statement_id]
+    for t in transactions:
+        t['category_name'] = cats_by_id.get(t.get('category_id'), {}).get('name', 'Other')
     transactions.sort(key=lambda t: t.get('date', ''))
-    return jsonify({'statement': statement, 'transactions': transactions})
+    return jsonify({'statement': statement, 'transactions': transactions, 'categories': get_categories()})
 
 @app.route('/api/statements/<statement_id>/transactions', methods=['POST'])
 @login_required
@@ -398,11 +585,15 @@ def api_add_transaction(statement_id):
         'balance': data.get('balance'),
         'flagged': False,
         'flag_reason': '',
-        'account_id': stmt_doc.to_dict().get('account_id'),
-        'statement_id': statement_id,
     }
+    categorize_transactions([tx], categories_by_name(), get_merchant_rules(uid))
+    tx['is_duplicate'] = False
+    tx['account_id'] = stmt_doc.to_dict().get('account_id')
+    tx['statement_id'] = statement_id
+    tx['confirmed'] = False
     _, ref = sub(uid, 'transactions').add(tx)
     tx['_id'] = ref.id
+    tx['category_name'] = categories_by_id().get(tx['category_id'], {}).get('name', 'Other')
     return jsonify({'success': True, 'transaction': tx})
 
 @app.route('/api/statements/<statement_id>/transactions/<tx_id>', methods=['PUT'])
@@ -410,8 +601,10 @@ def api_add_transaction(statement_id):
 def api_update_transaction(statement_id, tx_id):
     uid = get_user_id()
     ref = sub(uid, 'transactions').document(tx_id)
-    if not ref.get().exists:
+    tx_doc = ref.get()
+    if not tx_doc.exists:
         return jsonify({'error': 'Transaction not found.'}), 404
+    tx = tx_doc.to_dict()
     data = request.get_json(silent=True) or {}
     updates = {}
     for field in ('date', 'description', 'type'):
@@ -421,7 +614,23 @@ def api_update_transaction(statement_id, tx_id):
         updates['amount'] = float(data['amount'] or 0)
     if 'balance' in data:
         updates['balance'] = data['balance']
-    ref.update(updates)
+    if 'is_duplicate' in data:
+        updates['is_duplicate'] = bool(data['is_duplicate'])
+
+    # US-12: changing the category remembers it for this merchant going forward,
+    # and optionally applies it to that merchant's other transactions right now.
+    if 'category_id' in data and data['category_id'] and data['category_id'] != tx.get('category_id'):
+        updates['category_id'] = data['category_id']
+        merchant_key = tx.get('merchant_key') or normalize_merchant(tx.get('description'))
+        upsert_merchant_rule(uid, merchant_key, data['category_id'])
+        if data.get('apply_to_all') and merchant_key:
+            tx_sub = sub(uid, 'transactions')
+            for other in stream_docs(tx_sub):
+                if other['_id'] != tx_id and other.get('merchant_key') == merchant_key:
+                    tx_sub.document(other['_id']).update({'category_id': data['category_id']})
+
+    if updates:
+        ref.update(updates)
     return jsonify({'success': True})
 
 @app.route('/api/statements/<statement_id>/transactions/<tx_id>', methods=['DELETE'])
@@ -442,13 +651,26 @@ def api_confirm_statement(statement_id):
     statement = stmt_doc.to_dict()
 
     transactions = [t for t in stream_docs(sub(uid, 'transactions')) if t.get('statement_id') == statement_id]
+    # Balance/date flagging runs over every row — it's about the statement's
+    # own internal consistency and is unrelated to cross-statement duplicates.
     transactions, balance_ok = validate_transactions(
         transactions, statement.get('opening_balance'), statement.get('closing_balance'),
         statement.get('period_start'), statement.get('period_end'),
     )
     tx_sub = sub(uid, 'transactions')
+
+    # US-08: "Skipped rows are not saved." A row still flagged is_duplicate
+    # here means the user never resolved it (never clicked Keep), so it's
+    # treated as skipped automatically — this is what actually guarantees an
+    # overlapping re-upload can never double-count, rather than relying on
+    # the user to act on every flag.
+    skipped = 0
     for tx in transactions:
-        tx_sub.document(tx['_id']).update({'flagged': tx['flagged'], 'flag_reason': tx['flag_reason']})
+        if tx.get('is_duplicate'):
+            tx_sub.document(tx['_id']).delete()
+            skipped += 1
+        else:
+            tx_sub.document(tx['_id']).update({'flagged': tx['flagged'], 'flag_reason': tx['flag_reason'], 'confirmed': True})
 
     # US-07: "Nothing is saved until the user clicks Confirm" — the rows were
     # already written so they're editable; confirming locks them in and, per
@@ -456,8 +678,11 @@ def api_confirm_statement(statement_id):
     file_path = statement.get('file_path')
     if file_path and os.path.exists(file_path):
         os.remove(file_path)
-    stmt_ref.update({'status': 'confirmed', 'balance_ok': balance_ok, 'confirmed_at': datetime.now(timezone.utc).isoformat()})
-    return jsonify({'success': True})
+    stmt_ref.update({'status': 'confirmed', 'balance_ok': balance_ok, 'confirmed_at': now_iso()})
+
+    # US-10: recalculate the linked account's balance now that these are confirmed.
+    new_balance = recompute_account_balance(uid, statement.get('account_id'))
+    return jsonify({'success': True, 'account_balance': new_balance, 'skipped_duplicates': skipped})
 
 @app.route('/api/statements/<statement_id>', methods=['DELETE'])
 @login_required
@@ -474,6 +699,98 @@ def api_discard_statement(statement_id):
                 sub(uid, 'transactions').document(t['_id']).delete()
         stmt_ref.delete()
     return jsonify({'success': True})
+
+# ===== Summaries (US-13, US-14) =====
+
+def month_range(from_month, to_month):
+    y1, m1 = (int(x) for x in from_month.split('-'))
+    y2, m2 = (int(x) for x in to_month.split('-'))
+    months = []
+    y, m = y1, m1
+    while (y, m) <= (y2, m2) and len(months) < MAX_SUMMARY_MONTHS:
+        months.append(f'{y:04d}-{m:02d}')
+        m += 1
+        if m == 13:
+            m = 1
+            y += 1
+    return months
+
+def confirmed_transactions(uid, account_id):
+    txs = [t for t in stream_docs(sub(uid, 'transactions')) if t.get('confirmed')]
+    if account_id and account_id != 'all':
+        txs = [t for t in txs if t.get('account_id') == account_id]
+    return txs
+
+@app.route('/api/summary/monthly', methods=['GET'])
+@login_required
+def api_summary_monthly():
+    uid = get_user_id()
+    current_month = datetime.now(timezone.utc).strftime('%Y-%m')
+    from_month = request.args.get('from') or current_month
+    to_month = request.args.get('to') or current_month
+    account_id = request.args.get('account', 'all')
+    if to_month < from_month:
+        from_month, to_month = to_month, from_month
+
+    months = month_range(from_month, to_month)
+    transfers_id = categories_by_name().get('Transfers', {}).get('_id')
+    totals = {m: {'income': 0.0, 'expenses': 0.0} for m in months}
+
+    for t in confirmed_transactions(uid, account_id):
+        m = (t.get('date') or '')[:7]
+        if m not in totals or t.get('category_id') == transfers_id:
+            continue
+        amount = float(t.get('amount') or 0)
+        if t.get('type') == 'credit':
+            totals[m]['income'] += amount
+        else:
+            totals[m]['expenses'] += amount
+
+    result = [{
+        'month': m,
+        'income': round(totals[m]['income'], 2),
+        'expenses': round(totals[m]['expenses'], 2),
+        'net': round(totals[m]['income'] - totals[m]['expenses'], 2),
+    } for m in months]
+    return jsonify({'months': result})
+
+@app.route('/api/summary/categories', methods=['GET'])
+@login_required
+def api_summary_categories():
+    uid = get_user_id()
+    month = request.args.get('month') or datetime.now(timezone.utc).strftime('%Y-%m')
+    account_id = request.args.get('account', 'all')
+    cats_by_id = categories_by_id()
+    transfers_id = categories_by_name().get('Transfers', {}).get('_id')
+
+    totals = {}
+    for t in confirmed_transactions(uid, account_id):
+        if t.get('type') != 'debit':
+            continue
+        if (t.get('date') or '')[:7] != month:
+            continue
+        cat_id = t.get('category_id')
+        if cat_id == transfers_id:
+            continue
+        totals[cat_id] = totals.get(cat_id, 0.0) + float(t.get('amount') or 0)
+
+    rows = [{'category_id': cid, 'category': cats_by_id.get(cid, {}).get('name', 'Other'), 'total': round(total, 2)}
+            for cid, total in totals.items()]
+    rows.sort(key=lambda r: r['total'], reverse=True)
+    return jsonify({'categories': rows, 'month': month})
+
+@app.route('/api/summary/categories/transactions', methods=['GET'])
+@login_required
+def api_summary_category_transactions():
+    uid = get_user_id()
+    month = request.args.get('month') or datetime.now(timezone.utc).strftime('%Y-%m')
+    account_id = request.args.get('account', 'all')
+    category_id = request.args.get('category_id', '')
+
+    rows = [t for t in confirmed_transactions(uid, account_id)
+            if t.get('type') == 'debit' and (t.get('date') or '')[:7] == month and t.get('category_id') == category_id]
+    rows.sort(key=lambda t: t.get('date', ''))
+    return jsonify({'transactions': rows})
 
 
 if __name__ == '__main__':

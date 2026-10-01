@@ -1,4 +1,5 @@
 let accounts = [];
+const TYPE_LABELS = { chequing: 'Chequing', savings: 'Savings', credit_card: 'Credit card' };
 
 async function loadAccounts() {
     const res = await fetch('/api/accounts');
@@ -6,7 +7,8 @@ async function loadAccounts() {
     accounts = data.accounts || [];
     const select = document.getElementById('accountSelect');
     select.innerHTML = '<option value="">Select an account&hellip;</option>' +
-        accounts.map(a => `<option value="${a._id}">${escapeHtml(a.name)} (${escapeHtml(a.type)})</option>`).join('');
+        accounts.map(a => `<option value="${a._id}">${escapeHtml(a.name)} (${TYPE_LABELS[a.type] || a.type})</option>`).join('');
+    document.getElementById('noAccountsHint').classList.toggle('hidden', accounts.length > 0);
 }
 
 async function loadStatements() {
@@ -34,24 +36,20 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 
-document.getElementById('toggleNewAccount').addEventListener('click', function () {
-    const fields = document.getElementById('newAccountFields');
-    const select = document.getElementById('accountSelect');
-    const show = fields.classList.contains('hidden');
-    fields.classList.toggle('hidden', !show);
-    this.textContent = show ? '− Use an existing account' : '+ Add a new account';
-    if (show) select.value = '';
-});
-
 document.getElementById('uploadForm').addEventListener('submit', async function (e) {
     e.preventDefault();
     const errEl = document.getElementById('uploadError');
     errEl.classList.add('hidden');
 
-    let accountId = document.getElementById('accountSelect').value;
-    const newName = document.getElementById('newAccountName').value.trim();
+    const accountId = document.getElementById('accountSelect').value;
     const fileInput = document.getElementById('statementFile');
     const file = fileInput.files[0];
+
+    if (!accountId) {
+        errEl.textContent = 'Choose an account for this statement.';
+        errEl.classList.remove('hidden');
+        return;
+    }
 
     if (!file) {
         errEl.textContent = 'Choose a file to upload.';
@@ -73,18 +71,6 @@ document.getElementById('uploadForm').addEventListener('submit', async function 
 
     document.getElementById('loadingOverlay').classList.remove('hidden');
     try {
-        if (!accountId) {
-            if (!newName) throw new Error('Choose an account, or enter a name for a new one.');
-            const accRes = await fetch('/api/accounts', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: newName, type: document.getElementById('newAccountType').value }),
-            });
-            const accData = await accRes.json();
-            if (accData.error) throw new Error(accData.error);
-            accountId = accData.account._id;
-        }
-
         const formData = new FormData();
         formData.append('account_id', accountId);
         formData.append('period_start', document.getElementById('periodStart').value);

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Accounts - Statement Parser{% endblock %}
+{% block content %}
+<div class="page">
+    <div class="page-head">
+        <div>
+            <h1 class="page-title">Accounts</h1>
+            <p class="page-sub">Your chequing, savings and credit card accounts, with balances from confirmed transactions.</p>
+        </div>
+        <div class="page-actions">
+            <button type="button" id="addAccountBtn" class="btn btn-primary">+ Add account</button>
+        </div>
+    </div>
+
+    <div id="accountsGrid" class="row" style="flex-wrap:wrap;gap:20px;">
+        <p class="muted">Loading&hellip;</p>
+    </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+{% endblock %}
+{% block modals %}
+<div id="accountModal" class="modal">
+    <div class="modal-box">
+        <div class="modal-head">
+            <span class="modal-title" id="accountModalTitle">Add account</span>
+            <button type="button" class="modal-close" id="accountModalClose" aria-label="Close">&times;</button>
+        </div>
+        <form id="accountForm" class="modal-body stack">
+            <input type="hidden" id="accountId">
+            <label class="field">
+                <span>Account name</span>
+                <input type="text" id="accountName" class="input" placeholder="e.g. Everyday Chequing" required>
+            </label>
+            <label class="field">
+                <span>Type</span>
+                <select id="accountType" class="select" required>
+                    <option value="chequing">Chequing</option>
+                    <option value="savings">Savings</option>
+                    <option value="credit_card">Credit card</option>
+                </select>
+            </label>
+            <label class="field">
+                <span>Institution</span>
+                <input type="text" id="accountInstitution" class="input" placeholder="e.g. Riverside Bank">
+            </label>
+            <label class="field">
+                <span>Opening balance</span>
+                <input type="number" id="accountOpeningBalance" class="input mono" step="0.01" value="0">
+                <span style="display:block;font-size:12px;color:var(--muted);margin-top:6px;">For a credit card, this is the balance owed (not available credit).</span>
+            </label>
+            <div id="accountFormError" class="form-error hidden"></div>
+        </form>
+        <div class="modal-foot">
+            <button type="button" class="btn btn-outline" id="accountModalCancel">Cancel</button>
+            <button type="submit" form="accountForm" class="btn btn-primary">Save account</button>
+        </div>
+    </div>
+</div>
+
+<div id="deleteConfirmModal" class="modal">
+    <div class="modal-box">
+        <div class="modal-head">
+            <span class="modal-title">Delete account?</span>
+            <button type="button" class="modal-close" id="deleteModalClose" aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p id="deleteConfirmText"></p>
+        </div>
+        <div class="modal-foot">
+            <button type="button" class="btn btn-outline" id="deleteModalCancel">Cancel</button>
+            <button type="button" class="btn btn-danger" id="deleteModalConfirm">Delete anyway</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/accounts.js') }}"></script>
+{% endblock %}

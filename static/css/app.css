@@ -47,7 +47,7 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; colo
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
 .page-title { font: 600 40px/1.1 var(--font-display); letter-spacing: -.01em; margin-bottom: 8px; }
 .page-sub { color: var(--muted); font-size: 16px; }
-.page-actions { display: flex; gap: 10px; align-items: center; }
+.page-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
 /* Primitives */
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
@@ -117,4 +117,11 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; colo
   .site-nav { gap: 18px; }
   .row, .form-row { flex-direction: column; }
   .page-head { flex-direction: column; align-items: flex-start; }
+}
+
+/* Phone widths: header wraps to its own row instead of squeezing/overflowing. */
+@media (max-width: 640px) {
+  .site-header { flex-wrap: wrap; height: auto; padding-top: 14px; padding-bottom: 14px; row-gap: 10px; }
+  .site-nav { order: 3; width: 100%; overflow-x: auto; white-space: nowrap; }
+  .account-card { width: 100% !important; }
 }

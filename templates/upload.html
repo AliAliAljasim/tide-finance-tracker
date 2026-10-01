@@ -14,27 +14,13 @@
             <form id="uploadForm" class="stack">
                 <label class="field">
                     <span>Account</span>
-                    <select id="accountSelect" class="select">
+                    <select id="accountSelect" class="select" required>
                         <option value="">Select an account&hellip;</option>
                     </select>
                 </label>
-
-                <div id="newAccountFields" class="stack hidden" style="gap:12px;">
-                    <label class="field">
-                        <span>Account name</span>
-                        <input type="text" id="newAccountName" class="input" placeholder="e.g. Everyday Chequing">
-                    </label>
-                    <label class="field">
-                        <span>Account type</span>
-                        <select id="newAccountType" class="select">
-                            <option value="Chequing">Chequing</option>
-                            <option value="Savings">Savings</option>
-                            <option value="Credit Card">Credit Card</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </label>
-                </div>
-                <button type="button" id="toggleNewAccount" class="link" style="text-align:left;background:none;border:0;padding:0;cursor:pointer;">+ Add a new account</button>
+                <p id="noAccountsHint" class="hidden" style="font-size:13px;color:var(--muted);">
+                    No accounts yet. <a href="/accounts" class="link">Add one first</a>.
+                </p>
 
                 <div class="form-row">
                     <label class="field">
