@@ -3,78 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Financial Manager</title>
+    <title>Sign in - Tide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <div class="login-container">
-        <div class="login-card">
-            <div class="login-header">
-                <i class="fas fa-wallet"></i>
-                <h1>Financial Manager</h1>
-                <p>Sign in to your account</p>
+    <div class="auth-split">
+        <aside class="auth-panel">
+            <a href="/" class="brand auth-brand">Tide</a>
+            <div>
+                <h2 class="auth-headline">Know where your money goes, and where it is headed.</h2>
+                <p class="auth-lede">Budget, savings goals and registered accounts in one quiet place.</p>
             </div>
+            <div class="auth-foot mono">TFSA &middot; FHSA &middot; Net worth &middot; Diary</div>
+        </aside>
 
-            <form id="loginForm" class="login-form">
-                <div class="form-group">
-                    <label for="email">
-                        <i class="fas fa-envelope"></i> Email Address
+        <main class="auth-main">
+            <div class="auth-form-wrap">
+                <h1 class="auth-title">Welcome back</h1>
+                <p class="auth-sub">Sign in to continue.</p>
+
+                <form id="loginForm" class="stack auth-form">
+                    <label class="field">
+                        <span>Email</span>
+                        <input type="email" id="email" name="email" class="input" placeholder="you@example.com" required autofocus>
                     </label>
-                    <input type="email" id="email" name="email" placeholder="john@example.com" required autofocus>
-                </div>
-
-                <div class="form-group">
-                    <label for="password">
-                        <i class="fas fa-lock"></i> Password
+                    <label class="field">
+                        <span>Password</span>
+                        <input type="password" id="password" name="password" class="input" placeholder="Enter your password" required>
                     </label>
-                    <input type="password" id="password" name="password" placeholder="Enter your password" required>
-                </div>
+                    <button type="submit" class="btn btn-primary btn-block auth-submit">Sign in</button>
+                    <div class="auth-center">
+                        <a href="#" class="link" onclick="openResetModal(); return false;">Forgot password?</a>
+                    </div>
+                </form>
 
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-sign-in-alt"></i> Sign In
-                </button>
+                <p class="auth-switch">New to Tide? <a href="/signup" class="link">Create an account</a></p>
+            </div>
+        </main>
+    </div>
 
-                <div class="forgot-link">
-                    <a href="#" onclick="openResetModal(); return false;">Forgot password?</a>
-                </div>
-            </form>
-
-            <div class="login-footer">
-                <p>Don't have an account? <a href="/signup">Create one</a></p>
+    <div id="resetModal" class="modal show hidden">
+        <div class="modal-box">
+            <div class="modal-head">
+                <span class="modal-title">Reset password</span>
+                <button type="button" class="modal-close" onclick="closeResetModal()" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body stack">
+                <label class="field">
+                    <span>Email</span>
+                    <input type="email" id="resetEmail" class="input" placeholder="Enter your email">
+                </label>
+                <label class="field">
+                    <span>New password</span>
+                    <input type="password" id="resetNewPassword" class="input" placeholder="Enter new password">
+                </label>
+                <label class="field">
+                    <span>Confirm password</span>
+                    <input type="password" id="resetConfirmPassword" class="input" placeholder="Confirm new password">
+                </label>
+                <div id="resetError" class="form-error hidden"></div>
+                <button type="button" class="btn btn-primary btn-block" onclick="submitReset()">Reset password</button>
             </div>
         </div>
     </div>
 
-    <!-- Reset Password Modal -->
-    <div id="resetModal" class="modal-overlay hidden">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h2><i class="fas fa-key"></i> Reset Password</h2>
-                <button class="modal-close" onclick="closeResetModal()"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label for="resetEmail"><i class="fas fa-envelope"></i> Email Address</label>
-                    <input type="email" id="resetEmail" placeholder="Enter your email">
-                </div>
-                <div class="form-group">
-                    <label for="resetNewPassword"><i class="fas fa-lock"></i> New Password</label>
-                    <input type="password" id="resetNewPassword" placeholder="Enter new password">
-                </div>
-                <div class="form-group">
-                    <label for="resetConfirmPassword"><i class="fas fa-lock"></i> Confirm Password</label>
-                    <input type="password" id="resetConfirmPassword" placeholder="Confirm new password">
-                </div>
-                <div id="resetError" class="reset-error hidden"></div>
-                <button class="btn btn-primary" onclick="submitReset()">
-                    <i class="fas fa-check"></i> Reset Password
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Loading Overlay -->
     <div id="loadingOverlay" class="loading-overlay hidden">
         <div class="spinner"></div>
         <p>Signing in...</p>

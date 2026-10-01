@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}My Profile — Financial Manager{% endblock %}
+{% block title %}My profile — Tide{% endblock %}
 
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}">
@@ -8,212 +8,172 @@
 {% endblock %}
 
 {% block content %}
-<main class="goals-page">
+<main class="page profile-wrap">
 
-    <!-- Header -->
-    <div class="goals-header">
-        <div class="goals-header-left">
-            <div class="goals-avatar">{{ session.user_name[0].upper() if session.user_name else 'U' }}</div>
-            <div>
-                <h1 class="goals-name">{{ session.user_name }}</h1>
-                <p class="goals-subtitle" id="headerNetWorth">Loading...</p>
-            </div>
+    <div class="profile-head">
+        <div class="profile-avatar">{{ session.user_name[0].upper() if session.user_name else 'U' }}</div>
+        <div>
+            <h1 class="profile-name">{{ session.user_name }}</h1>
+            <p id="headerNetWorth" class="profile-sub">Loading...</p>
         </div>
     </div>
 
-    <!-- Unified Setup Progress -->
     {% set total_pct = (total_complete / total_items * 100) | round | int if total_items > 0 else 0 %}
     {% if total_pct < 100 %}
     {% set info_pct   = (info_complete   / info_total   * 100) | round | int if info_total   > 0 else 0 %}
     {% set income_pct = (income_complete / income_total * 100) | round | int if income_total > 0 else 0 %}
     {% set goals_pct  = (goals_complete  / goals_total  * 100) | round | int if goals_total  > 0 else 0 %}
-    <div class="setup-progress-card">
-        <div class="spc-header">
-            <span class="spc-label">Profile Setup</span>
-            <span class="spc-pct {% if total_pct == 100 %}spc-pct-done{% endif %}">{{ total_pct }}%</span>
+    <section class="card setup-card" aria-label="Profile setup">
+        <div class="setup-top">
+            <span class="setup-title">Profile setup</span>
+            <span class="setup-pct">{{ total_pct }}%</span>
         </div>
-        <div class="spc-bar-track">
-            <div class="spc-bar-fill {% if total_pct == 100 %}spc-fill-done{% endif %}"
-                 style="width:{{ total_pct }}%"></div>
-        </div>
-        <div class="spc-categories">
-            <div class="spc-cat">
-                <div class="spc-cat-top">
-                    <span class="spc-cat-label"><i class="fas fa-user"></i> Info</span>
-                    <span class="spc-cat-frac {% if info_complete == info_total %}spc-cat-done{% endif %}">{{ info_complete }}/{{ info_total }}</span>
-                </div>
-                <div class="spc-cat-bar-track">
-                    <div class="spc-cat-bar-fill" style="width:{{ info_pct }}%;background:#2563eb"></div>
-                </div>
+        <div class="bar setup-bar"><span style="width:{{ total_pct }}%"></span></div>
+        <div class="setup-grid">
+            <div>
+                <div class="setup-item-top"><span>Info</span><span class="count {{ 'done' if info_complete == info_total else '' }}">{{ info_complete }}/{{ info_total }}</span></div>
+                <div class="bar thin"><span style="width:{{ info_pct }}%"></span></div>
             </div>
-            <div class="spc-cat">
-                <div class="spc-cat-top">
-                    <span class="spc-cat-label"><i class="fas fa-dollar-sign"></i> Income</span>
-                    <span class="spc-cat-frac {% if income_complete == income_total %}spc-cat-done{% endif %}">{{ income_complete }}/{{ income_total }}</span>
-                </div>
-                <div class="spc-cat-bar-track">
-                    <div class="spc-cat-bar-fill" style="width:{{ income_pct }}%;background:#10b981"></div>
-                </div>
+            <div>
+                <div class="setup-item-top"><span>Income</span><span class="count {{ 'done' if income_complete == income_total else '' }}">{{ income_complete }}/{{ income_total }}</span></div>
+                <div class="bar thin"><span style="width:{{ income_pct }}%"></span></div>
             </div>
-            <div class="spc-cat">
-                <div class="spc-cat-top">
-                    <span class="spc-cat-label"><i class="fas fa-bullseye"></i> Goals</span>
-                    <span class="spc-cat-frac {% if goals_complete == goals_total and goals_total > 0 %}spc-cat-done{% endif %}">{{ goals_complete }}/{{ goals_total if goals_total > 0 else '—' }}</span>
-                </div>
-                <div class="spc-cat-bar-track">
-                    <div class="spc-cat-bar-fill" style="width:{{ goals_pct }}%;background:#f59e0b"></div>
-                </div>
+            <div>
+                <div class="setup-item-top"><span>Goals</span><span class="count {{ 'done' if (goals_complete == goals_total and goals_total > 0) else '' }}">{{ goals_complete }}/{{ goals_total if goals_total > 0 else '—' }}</span></div>
+                <div class="bar thin"><span style="width:{{ goals_pct }}%"></span></div>
             </div>
         </div>
-    </div>
+    </section>
     {% endif %}
 
-    <!-- Income & Savings -->
-    <div class="income-section-label">Income & Savings</div>
-    <div class="income-card">
-        <div class="income-item">
-            <span class="income-label">Monthly Income</span>
-            <span class="income-value">${{ '{:,.0f}'.format(monthly_income) }}</span>
+    <div class="label profile-section-label">Income and savings</div>
+    <section class="card stat-strip" aria-label="Income and savings">
+        <div class="stat-cell">
+            <div class="label">Monthly income</div>
+            <div class="stat-value">${{ '{:,.0f}'.format(monthly_income) }}</div>
         </div>
-        <div class="income-divider"></div>
-        <div class="income-item">
-            <span class="income-label">Savings Target</span>
-            <span class="income-value">${{ '{:,.0f}'.format(savings_target_amount) }}<span class="income-unit">/mo</span></span>
+        <div class="stat-cell">
+            <div class="label">Savings target</div>
+            <div class="stat-value">${{ '{:,.0f}'.format(savings_target_amount) }}<small>/mo</small></div>
         </div>
-        <div class="income-divider"></div>
-        <div class="income-item">
-            <span class="income-label">Saved This Month</span>
-            <span class="income-value" id="savedThisMonth">—</span>
+        <div class="stat-cell">
+            <div class="label">Saved this month</div>
+            <div id="savedThisMonth" class="stat-value">—</div>
         </div>
-    </div>
+    </section>
 
-    <!-- Net Worth Section -->
-    <div class="nw-section-label">Net Worth</div>
-    <div class="nw-stats-row">
-        <div class="nw-stat-card">
-            <span class="nw-stat-label">Current Net Worth</span>
-            <span class="nw-stat-value" id="nwCurrentValue">—</span>
+    <div class="label profile-section-label">Net worth</div>
+    <section class="card stat-strip joined" aria-label="Net worth">
+        <div class="stat-cell">
+            <div class="label">Current net worth</div>
+            <div id="nwCurrentValue" class="stat-value">—</div>
         </div>
-        <div class="nw-stat-divider"></div>
-        <div class="nw-stat-card">
-            <span class="nw-stat-label">Avg Monthly Spending</span>
-            <span class="nw-stat-value" id="nwAvgSpending">—</span>
+        <div class="stat-cell">
+            <div class="label">Avg monthly spending</div>
+            <div id="nwAvgSpending" class="stat-value">—</div>
         </div>
-    </div>
-    <div class="nw-chart-card">
+    </section>
+    <div class="card chart-card">
         <canvas id="profileNetworthChart"></canvas>
     </div>
 
-    <!-- Goals Section -->
-    <div class="goals-section-title">
-        <span>Your Goals</span>
-        <div class="goals-title-actions">
-            <button class="goals-add-btn hidden" id="goalsAddBtn" onclick="openGoalModal()" title="Add goal">
-                <i class="fas fa-plus"></i>
-            </button>
-            <button class="goals-pencil-btn" id="goalsPencilBtn" onclick="toggleEditMode()" title="Edit goals">
-                <i class="fas fa-pencil-alt"></i>
-            </button>
+    <div class="goals-head">
+        <h2 class="goals-title">Your goals</h2>
+        <div class="goals-tools">
+            <button id="goalsAddBtn" class="btn btn-primary btn-sm hidden" onclick="openGoalModal()">Add goal</button>
+            <button id="goalsPencilBtn" class="btn btn-outline btn-sm" onclick="toggleEditMode()">Edit</button>
         </div>
     </div>
 
     <div id="goalsList" class="goals-list"></div>
 
-    <!-- Insights Strip -->
-    <div id="insightsStrip" class="insights-strip hidden">
-        <div class="insights-title"><i class="fas fa-lightbulb"></i> Insights</div>
+    <section id="insightsStrip" class="card insights hidden" aria-label="Insights">
+        <div class="insights-title">Insights</div>
         <div id="insightsList" class="insights-list"></div>
-    </div>
+    </section>
 
 </main>
+{% endblock %}
 
-<!-- Add/Edit Goal Modal -->
-<div id="goalModal" class="modal-overlay hidden" onclick="closeModalOnBackdrop(event)">
-    <div class="modal-card">
-        <div class="modal-header">
-            <h2 id="modalTitle">Add Goal</h2>
-            <button class="modal-close" onclick="closeGoalModal()"><i class="fas fa-times"></i></button>
+{% block modals %}
+<div id="goalModal" class="modal" onclick="closeModalOnBackdrop(event)">
+    <div class="modal-box">
+        <div class="modal-head">
+            <h2 id="modalTitle" class="modal-title">Add Goal</h2>
+            <button type="button" class="modal-close" onclick="closeGoalModal()" aria-label="Close">&times;</button>
         </div>
         <div class="modal-body">
             <input type="hidden" id="editGoalId">
-            <div class="form-group">
-                <label>Goal Name</label>
-                <input type="text" id="goalTitle" placeholder="e.g. Emergency Fund" maxlength="100">
-            </div>
-            <div class="form-group">
-                <label>Goal Type</label>
+            <label class="field">
+                <span>Goal name</span>
+                <input type="text" id="goalTitle" class="input" placeholder="e.g. Emergency Fund" maxlength="100">
+            </label>
+            <div class="goal-type-wrap">
+                <span class="field-label">Goal type</span>
                 <div class="goal-type-options">
-                    <label class="goal-type-option" id="goalTypeTargetLabel">
+                    <label id="goalTypeTargetLabel" class="goal-type-option">
                         <input type="radio" name="goalType" id="goalTypeTarget" value="target" checked onchange="onGoalTypeChange()">
-                        <span class="goal-type-icon"><i class="fas fa-bullseye"></i></span>
-                        <span class="goal-type-text">
+                        <span>
                             <strong>Save a target amount</strong>
                             <small>Save up to reach a specific total</small>
                         </span>
                     </label>
-                    <label class="goal-type-option" id="goalTypePeriodicLabel">
+                    <label id="goalTypePeriodicLabel" class="goal-type-option">
                         <input type="radio" name="goalType" id="goalTypePeriodic" value="periodic" onchange="onGoalTypeChange()">
-                        <span class="goal-type-icon"><i class="fas fa-repeat"></i></span>
-                        <span class="goal-type-text">
+                        <span>
                             <strong>Deposit periodically</strong>
                             <small>Contribute on a regular schedule</small>
                         </span>
                     </label>
                 </div>
             </div>
-            <div class="form-group">
-                <label>Account</label>
-                <select id="goalAccount">
+            <label class="field">
+                <span>Account</span>
+                <select id="goalAccount" class="select">
                     <option value="">— Select account —</option>
                     {% for name in account_names %}
                     <option value="{{ name }}">{{ name }}</option>
                     {% endfor %}
                 </select>
+            </label>
+            <div id="goalTargetFields" class="goal-fields-grid" style="display:grid">
+                <label class="field">
+                    <span>Target ($)</span>
+                    <input type="number" id="goalTarget" class="input" min="0" step="100" placeholder="0">
+                </label>
+                <label class="field">
+                    <span>Saved ($)</span>
+                    <input type="number" id="goalCurrent" class="input" min="0" step="10" placeholder="0">
+                </label>
             </div>
-            <!-- Target goal fields -->
-            <div id="goalTargetFields" class="modal-form-row two-col">
-                <div class="form-group">
-                    <label>Target ($)</label>
-                    <input type="number" id="goalTarget" min="0" step="100" placeholder="0">
-                </div>
-                <div class="form-group">
-                    <label>Saved ($)</label>
-                    <input type="number" id="goalCurrent" min="0" step="10" placeholder="0">
-                </div>
-            </div>
-            <!-- Periodic goal fields -->
-            <div id="goalPeriodicFields" class="modal-form-row two-col" style="display:none;">
-                <div class="form-group">
-                    <label>Frequency</label>
-                    <select id="goalFrequency">
+            <div id="goalPeriodicFields" class="goal-fields-grid" style="display:none">
+                <label class="field">
+                    <span>Frequency</span>
+                    <select id="goalFrequency" class="select">
                         <option value="weekly">Weekly</option>
                         <option value="biweekly">Bi-weekly</option>
                         <option value="monthly" selected>Monthly</option>
                         <option value="quarterly">Quarterly</option>
                         <option value="yearly">Yearly</option>
                     </select>
-                </div>
-                <div class="form-group">
-                    <label>Amount ($)</label>
-                    <input type="number" id="goalMonthly" min="0" step="10" placeholder="0">
-                </div>
+                </label>
+                <label class="field">
+                    <span>Amount ($)</span>
+                    <input type="number" id="goalMonthly" class="input" min="0" step="10" placeholder="0">
+                </label>
             </div>
         </div>
-        <div class="modal-footer">
-            <button class="btn-modal-delete hidden" id="btnDeleteGoal" onclick="deleteGoal()">
-                <i class="fas fa-trash"></i> Delete
-            </button>
-            <div class="modal-footer-right">
-                <button class="btn-modal-cancel" onclick="closeGoalModal()">Cancel</button>
-                <button class="btn-modal-save" id="btnSaveGoal" onclick="saveGoal()">
-                    <i class="fas fa-check"></i> Save
-                </button>
+        <div class="modal-foot split">
+            <button id="btnDeleteGoal" type="button" class="btn btn-outline hidden neg" onclick="deleteGoal()">Delete</button>
+            <div class="end">
+                <button type="button" class="btn btn-outline" onclick="closeGoalModal()">Cancel</button>
+                <button id="btnSaveGoal" type="button" class="btn btn-primary" onclick="saveGoal()">Save</button>
             </div>
         </div>
     </div>
 </div>
 
-<div id="toast" class="toast"></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 {% endblock %}
 
 {% block scripts %}
@@ -222,16 +182,16 @@
 const USER_GOAL_TYPES = {{ financial_goals | tojson }};
 
 const GOAL_TYPE_INFO = {
-    'emergency-fund': { label: 'Emergency Fund',  color: '#10b981', icon: 'fa-shield-alt',     keywords: ['emergency'] },
-    'debt-payoff':    { label: 'Debt Payoff',      color: '#ef4444', icon: 'fa-credit-card',    keywords: ['debt', 'loan', 'credit'] },
-    'home-purchase':  { label: 'Home Purchase',    color: '#2563eb', icon: 'fa-home',           keywords: ['home', 'house', 'fhsa', 'mortgage'] },
-    'retirement':     { label: 'Retirement',       color: '#8b5cf6', icon: 'fa-umbrella-beach', keywords: ['retire', 'rrsp', 'pension'] },
-    'investing':      { label: 'Investing',        color: '#f59e0b', icon: 'fa-chart-line',     keywords: ['invest', 'tfsa', 'stock', 'portfolio'] },
-    'travel':         { label: 'Travel',           color: '#06b6d4', icon: 'fa-plane',          keywords: ['travel', 'vacation', 'trip'] },
-    'education':      { label: 'Education',        color: '#ec4899', icon: 'fa-graduation-cap', keywords: ['education', 'tuition', 'school', 'resp'] },
+    'emergency-fund': { label: 'Emergency Fund',  color: '#1F7A4D', icon: 'fa-shield-alt',     keywords: ['emergency'] },
+    'debt-payoff':    { label: 'Debt Payoff',      color: '#B4432F', icon: 'fa-credit-card',    keywords: ['debt', 'loan', 'credit'] },
+    'home-purchase':  { label: 'Home Purchase',    color: '#2F4BFF', icon: 'fa-home',           keywords: ['home', 'house', 'fhsa', 'mortgage'] },
+    'retirement':     { label: 'Retirement',       color: '#7C3AED', icon: 'fa-umbrella-beach', keywords: ['retire', 'rrsp', 'pension'] },
+    'investing':      { label: 'Investing',        color: '#C2410C', icon: 'fa-chart-line',     keywords: ['invest', 'tfsa', 'stock', 'portfolio'] },
+    'travel':         { label: 'Travel',           color: '#0F766E', icon: 'fa-plane',          keywords: ['travel', 'vacation', 'trip'] },
+    'education':      { label: 'Education',        color: '#BE185D', icon: 'fa-graduation-cap', keywords: ['education', 'tuition', 'school', 'resp'] },
 };
 
-const PALETTE = ['#2563eb','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899'];
+const PALETTE = ['#2F4BFF','#1F7A4D','#C2410C','#B4432F','#7C3AED','#0F766E','#BE185D'];
 const ACCOUNT_NAMES = {{ account_names | tojson }};
 
 function autoColorIcon(title) {
@@ -253,11 +213,11 @@ function toggleEditMode() {
     const pencilBtn = document.getElementById('goalsPencilBtn');
     const addBtn    = document.getElementById('goalsAddBtn');
     if (editMode) {
-        pencilBtn.innerHTML = '<i class="fas fa-check"></i>';
+        pencilBtn.textContent = 'Done';
         pencilBtn.classList.add('edit-mode-active');
         addBtn.classList.remove('hidden');
     } else {
-        pencilBtn.innerHTML = '<i class="fas fa-pencil-alt"></i>';
+        pencilBtn.textContent = 'Edit';
         pencilBtn.classList.remove('edit-mode-active');
         addBtn.classList.add('hidden');
     }
@@ -269,13 +229,14 @@ async function loadSnapshot() {
     try {
         const res = await fetch('/api/dashboard-data');
         const data = await res.json();
-        const nw = data.net_worth ?? 0;
-        const savings = (data.total_income ?? 0) - (data.total_expenses ?? 0);
+        const nw = data.dashboard?.netWorth ?? 0;
+        const savings = data.dashboard?.netMonth ?? 0;
 
         document.getElementById('headerNetWorth').textContent = 'Net Worth · ' + formatCurrency(nw);
         const el = document.getElementById('savedThisMonth');
         el.textContent = formatCurrency(savings);
-        el.style.color = savings >= 0 ? 'var(--success-color)' : '#ef4444';
+        el.classList.toggle('pos', savings >= 0);
+        el.classList.toggle('neg', savings < 0);
     } catch(e) {
         document.getElementById('headerNetWorth').textContent = '';
     }
@@ -297,32 +258,25 @@ function renderAll() {
     const matchedGoalIds = new Set();
     const insights = [];
 
-    // ── Setup-based goal cards ─────────────────────────────────────────────
-    let activeCount = 0;
-
     USER_GOAL_TYPES.forEach(type => {
         const info = GOAL_TYPE_INFO[type];
         if (!info) return;
 
-        // Find the best matching goal for this type
         const matched = allGoals.find(g =>
             info.keywords.some(kw => g.title.toLowerCase().includes(kw))
         );
 
         if (matched) {
             matchedGoalIds.add(matched.id);
-            activeCount++;
             const pct = matched.targetAmount > 0
                 ? Math.min((matched.currentAmount / matched.targetAmount) * 100, 100) : 0;
             list.appendChild(buildGoalCard(matched, pct));
             insights.push(buildInsight(matched, pct));
         } else {
-            // Suggestion card — "Not started"
             list.appendChild(buildSuggestionCard(type, info));
         }
     });
 
-    // ── Extra manual goals (not matched to any setup type) ─────────────────
     const extras = allGoals.filter(g => !matchedGoalIds.has(g.id));
     extras.forEach(g => {
         const pct = g.targetAmount > 0 ? Math.min((g.currentAmount / g.targetAmount) * 100, 100) : 0;
@@ -330,30 +284,19 @@ function renderAll() {
         insights.push(buildInsight(g, pct));
     });
 
-    // ── Empty state (no setup types AND no manual goals) ───────────────────
     if (USER_GOAL_TYPES.length === 0 && allGoals.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'goals-empty';
-        empty.innerHTML = `<i class="fas fa-bullseye"></i><p>No goals yet. Tap <strong>+ Goal</strong> to get started!</p>`;
+        empty.innerHTML = '<p>No goals yet. Choose <strong>Edit</strong>, then add your first goal.</p>';
         list.appendChild(empty);
     }
 
-    // ── Insights ───────────────────────────────────────────────────────────
     renderInsights(insights.filter(Boolean));
-}
-
-function isCheckedInThisPeriod(g) {
-    if (!g.lastCheckIn) return false;
-    const period_days = { weekly: 7, biweekly: 14, monthly: 30, quarterly: 90, yearly: 365 };
-    const days = period_days[g.contributionFrequency] || 30;
-    const last = new Date(g.lastCheckIn + 'T00:00:00');
-    const now = new Date();
-    return (now - last) / 86400000 < days;
 }
 
 function buildGoalCard(g, pct) {
     const card = document.createElement('div');
-    card.className = editMode ? 'goal-card goal-card-editable' : 'goal-card';
+    card.className = 'card goal-row' + (editMode ? ' editable' : '');
     if (editMode) card.onclick = () => openGoalModal(g.id);
 
     let progressHTML = '';
@@ -369,15 +312,12 @@ function buildGoalCard(g, pct) {
         if (amtLabel) subParts.push(amtLabel);
 
         progressHTML = `
-            <div class="streak-row">
-                <div class="streak-counter" style="color:${g.color}">
-                    <i class="fas fa-fire"></i>
-                    <span class="streak-number">${g.streakCount || 0}</span>
-                    <span class="streak-label">streak</span>
-                </div>
+            <div class="goal-streak" style="color:${g.color}">
+                <span>${g.streakCount || 0}</span>
+                <small>streak</small>
             </div>
         `;
-        if (subParts.length) subHTML = `<div class="goal-card-sub">${subParts.join(' · ')}</div>`;
+        if (subParts.length) subHTML = `<div class="goal-row-sub">${subParts.join(' · ')}</div>`;
     } else {
         const showProgress = g.targetAmount > 0;
         const subParts = [];
@@ -385,20 +325,20 @@ function buildGoalCard(g, pct) {
         if (showProgress) subParts.push(formatCurrency(g.currentAmount) + ' of ' + formatCurrency(g.targetAmount));
 
         progressHTML = showProgress ? `
-            <div class="goal-progress-row">
-                <div class="goal-bar-track"><div class="goal-bar-fill" style="width:${pct}%;background:${g.color}"></div></div>
-                <span class="goal-card-pct" style="color:${g.color}">${Math.round(pct)}%</span>
+            <div class="goal-progress">
+                <div class="bar"><span style="width:${pct}%;background:${g.color}"></span></div>
+                <span class="pct" style="color:${g.color}">${Math.round(pct)}%</span>
             </div>
         ` : '';
-        if (subParts.length) subHTML = `<div class="goal-card-sub">${subParts.join(' · ')}</div>`;
+        if (subParts.length) subHTML = `<div class="goal-row-sub">${subParts.join(' · ')}</div>`;
     }
 
     card.innerHTML = `
-        <div class="goal-accent" style="background:${g.color}"></div>
-        <div class="goal-card-body">
-            <div class="goal-card-top">
-                <span class="goal-card-title">${escapeHtml(g.title)}</span>
-                ${editMode ? `<span class="goal-edit-badge"><i class="fas fa-pencil-alt"></i></span>` : ''}
+        <div class="goal-stripe" style="background:${g.color}"></div>
+        <div class="goal-body">
+            <div class="goal-row-top">
+                <span class="goal-row-title">${escapeHtml(g.title)}</span>
+                ${editMode ? '<span class="goal-row-edit">Edit</span>' : ''}
             </div>
             ${progressHTML}
             ${subHTML}
@@ -409,45 +349,20 @@ function buildGoalCard(g, pct) {
 
 function buildSuggestionCard(type, info) {
     const card = document.createElement('div');
-    card.className = editMode ? 'goal-card goal-card-suggestion goal-card-editable' : 'goal-card goal-card-suggestion';
+    card.className = 'card goal-row suggestion' + (editMode ? ' editable' : '');
     if (editMode) card.onclick = () => openGoalModal(null, type);
 
     card.innerHTML = `
-        <div class="goal-accent" style="background:${info.color}50"></div>
-        <div class="goal-card-body">
-            <div class="goal-card-top">
-                <span class="goal-card-title">${info.label}</span>
-                <span class="action-required-badge"><i class="fas fa-exclamation"></i> Action Required</span>
+        <div class="goal-stripe" style="background:${info.color};opacity:.35"></div>
+        <div class="goal-body">
+            <div class="goal-row-top">
+                <span class="goal-row-title">${info.label}</span>
+                <span class="badge-action">Action required</span>
             </div>
-            <div class="goal-card-sub">Tap to set up</div>
+            <div class="goal-row-sub">Tap Edit, then choose this goal to set it up</div>
         </div>
     `;
     return card;
-}
-
-async function checkInGoal(goalId, event) {
-    event.stopPropagation();
-    const btn = event.currentTarget;
-    if (btn.disabled) return;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-    try {
-        const res = await fetch(`/api/goals/${goalId}/checkin`, { method: 'POST' });
-        const data = await res.json();
-        if (data.alreadyDone) {
-            showToast('Already logged this period!');
-        } else if (data.success) {
-            showToast(`Streak: ${data.streakCount} 🔥`);
-            loadGoals();
-            return;
-        } else {
-            showToast(data.error || 'Error', 'error');
-        }
-    } catch(e) {
-        showToast('Error logging deposit', 'error');
-    }
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fas fa-plus"></i> Log Deposit';
 }
 
 function buildInsight(g, pct) {
@@ -460,20 +375,23 @@ function buildInsight(g, pct) {
     return { text: `${g.title} — In Progress`, type: 'neutral' };
 }
 
+const INSIGHT_COLORS = { good: '#1F7A4D', complete: '#2F4BFF', neutral: '#666A72' };
+
 function renderInsights(insights) {
     const strip = document.getElementById('insightsStrip');
     if (!insights.length) { strip.classList.add('hidden'); return; }
     strip.classList.remove('hidden');
-    document.getElementById('insightsList').innerHTML = insights.map(i =>
-        `<span class="insight-badge insight-${i.type}">${escapeHtml(i.text)}</span>`
-    ).join('');
+    document.getElementById('insightsList').innerHTML = insights.map(i => {
+        const c = INSIGHT_COLORS[i.type] || '#666A72';
+        return `<span class="insight-chip" style="color:${c};background:${c}1a">${escapeHtml(i.text)}</span>`;
+    }).join('');
 }
 
 // ── Modal ──────────────────────────────────────────────────────────────────────
 function onGoalTypeChange() {
     const isTarget = document.getElementById('goalTypeTarget').checked;
-    document.getElementById('goalTargetFields').style.display = isTarget ? '' : 'none';
-    document.getElementById('goalPeriodicFields').style.display = isTarget ? 'none' : '';
+    document.getElementById('goalTargetFields').style.display = isTarget ? 'grid' : 'none';
+    document.getElementById('goalPeriodicFields').style.display = isTarget ? 'none' : 'grid';
     document.getElementById('goalTypeTargetLabel').classList.toggle('goal-type-selected', isTarget);
     document.getElementById('goalTypePeriodicLabel').classList.toggle('goal-type-selected', !isTarget);
 }
@@ -513,11 +431,11 @@ function openGoalModal(goalId, prefillType) {
         }
         onGoalTypeChange();
     }
-    document.getElementById('goalModal').classList.remove('hidden');
+    document.getElementById('goalModal').classList.add('show');
 }
 
 function closeGoalModal() {
-    document.getElementById('goalModal').classList.add('hidden');
+    document.getElementById('goalModal').classList.remove('show');
 }
 
 async function saveGoal() {
@@ -540,7 +458,7 @@ async function saveGoal() {
 
     const id = document.getElementById('editGoalId').value;
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    btn.textContent = 'Saving...';
     try {
         const res = await fetch(id ? `/api/goals/${id}` : '/api/goals', {
             method: id ? 'PUT' : 'POST',
@@ -555,7 +473,7 @@ async function saveGoal() {
         showToast(e.message, 'error');
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-check"></i> Save';
+        btn.textContent = 'Save';
     }
 }
 
@@ -578,20 +496,14 @@ function closeModalOnBackdrop(e) {
 function formatCurrency(n) {
     return '$' + (n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
-function formatDeadline(dateStr) {
-    return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-}
 function escapeHtml(str) {
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 function showToast(message, type = 'success') {
     const toast = document.getElementById('toast');
     toast.textContent = '';
-    const icon = document.createElement('i');
-    icon.className = type === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-circle';
-    toast.appendChild(icon);
-    toast.appendChild(document.createTextNode(' ' + message));
-    toast.className = 'toast ' + type + ' show';
+    toast.textContent = message;
+    toast.className = 'toast show ' + (type === 'success' ? 'success' : 'error');
     setTimeout(() => toast.classList.remove('show'), 3500);
 }
 
@@ -609,15 +521,12 @@ async function loadProfileNetworth() {
         const avgData  = await avgRes.json();
         const histData = await histRes.json();
 
-        // Current net worth
         const nw = dashData.dashboard?.netWorth ?? 0;
         document.getElementById('nwCurrentValue').textContent = formatCurrency(nw);
 
-        // Average monthly spending
         const avg = avgData.average ?? 0;
         document.getElementById('nwAvgSpending').textContent = avg > 0 ? formatCurrency(avg) : '—';
 
-        // Chart
         renderProfileNetworthChart(histData.history || []);
     } catch(e) {
         console.error('Networth section error:', e);
@@ -633,6 +542,7 @@ function renderProfileNetworthChart(history) {
     const totals = history.map(h => h.total);
 
     if (profileNetworthChart) profileNetworthChart.destroy();
+    Chart.defaults.font.family = "'DM Sans', system-ui, sans-serif";
     profileNetworthChart = new Chart(ctx, {
         type: 'line',
         data: {
@@ -640,8 +550,8 @@ function renderProfileNetworthChart(history) {
             datasets: [{
                 label: 'Net Worth',
                 data: totals,
-                borderColor: '#2563eb',
-                backgroundColor: 'rgba(37,99,235,0.08)',
+                borderColor: '#2F4BFF',
+                backgroundColor: 'rgba(47,75,255,0.08)',
                 tension: 0.3,
                 fill: true,
                 pointRadius: history.length <= 12 ? 4 : 2,
@@ -653,24 +563,11 @@ function renderProfileNetworthChart(history) {
             maintainAspectRatio: false,
             plugins: {
                 legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: ctx => ' ' + formatCurrency(ctx.raw)
-                    }
-                }
+                tooltip: { callbacks: { label: ctx => ' ' + formatCurrency(ctx.raw) } }
             },
             scales: {
-                x: {
-                    grid: { display: false },
-                    ticks: { font: { size: 11 }, maxRotation: 0 }
-                },
-                y: {
-                    grid: { color: 'rgba(0,0,0,0.05)' },
-                    ticks: {
-                        font: { size: 11 },
-                        callback: v => v >= 1000 ? '$' + (v / 1000).toFixed(0) + 'k' : '$' + v
-                    }
-                }
+                x: { grid: { display: false }, ticks: { color: '#666A72', font: { size: 11 }, maxRotation: 0 } },
+                y: { grid: { color: '#E6E1D6' }, ticks: { color: '#666A72', font: { size: 11 }, callback: v => v >= 1000 ? '$' + (v / 1000).toFixed(0) + 'k' : '$' + v } }
             }
         }
     });

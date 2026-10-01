@@ -3,594 +3,327 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Setup Your Account - Financial Manager</title>
+    <title>Create your account - Tide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/signup.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <div class="signup-container">
-        <div class="signup-card">
-            <div class="signup-header">
-                <i class="fas fa-wallet"></i>
-                <h1>Financial Manager</h1>
-                <p>Setup your account to get started</p>
+{% macro field(label, for_id) %}
+<div class="field su-field">
+    <label for="{{ for_id }}" class="field-label">{{ label }}</label>
+    {{ caller() }}
+</div>
+{% endmacro %}
+{% macro nav_buttons(back_step, next_label, is_submit) %}
+<div class="su-actions">
+    {% if back_step %}
+    <button type="button" class="btn btn-outline" onclick="prevStep({{ back_step }})">Back</button>
+    {% endif %}
+    {% if is_submit %}
+    <button type="submit" class="btn btn-primary su-grow">Complete setup</button>
+    {% else %}
+    <button type="button" class="btn btn-primary su-grow" onclick="nextStep({{ (back_step or 0) + 2 }})">{{ next_label }}</button>
+    {% endif %}
+</div>
+{% endmacro %}
+{% macro checkbox_pill(name, value, label) %}
+<label class="su-check">
+    <input type="checkbox" name="{{ name }}" value="{{ value }}">
+    <span>{{ label }}</span>
+</label>
+{% endmacro %}
+{% macro eye_toggle(target) %}
+<button type="button" class="toggle-password" data-target="{{ target }}" aria-label="Show password while held">
+    <svg class="eye-show" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+    <svg class="eye-hide" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+</button>
+{% endmacro %}
+{% macro balance_field(id, label, hint) %}
+<div class="su-field">
+    <label for="{{ id }}" class="field-label">{{ label }}</label>
+    <div class="su-money">
+        <span class="su-money-sign mono">$</span>
+        <input type="number" id="{{ id }}" name="{{ id }}" class="input mono" placeholder="0.00" step="0.01" value="0">
+    </div>
+    {% if hint %}<span class="su-hint">{{ hint }}</span>{% endif %}
+</div>
+{% endmacro %}
+{% macro budget_field(name, label, placeholder, value) %}
+<div>
+    <label class="field-label">{{ label }}</label>
+    <div class="su-money">
+        <span class="su-money-sign mono">$</span>
+        <input type="number" name="{{ name }}" class="input mono" placeholder="{{ placeholder }}" step="0.01" value="{{ value }}">
+    </div>
+</div>
+{% endmacro %}
+{% macro month_options() %}
+<option value="" disabled selected></option>
+<option value="1">January</option><option value="2">February</option><option value="3">March</option>
+<option value="4">April</option><option value="5">May</option><option value="6">June</option>
+<option value="7">July</option><option value="8">August</option><option value="9">September</option>
+<option value="10">October</option><option value="11">November</option><option value="12">December</option>
+{% endmacro %}
+
+<header class="su-header">
+    <a href="/" class="brand">Tide</a>
+    <a href="/login" class="su-signin">Already have an account? <span class="link">Sign in</span></a>
+</header>
+
+<main class="su-main">
+    <div class="su-card card">
+        <h1 class="su-title">Create your account</h1>
+        <p class="su-sub">Answer a few questions and we will tailor Tide to you. You can change any of it later.</p>
+
+        <form id="signupForm">
+            <div class="su-progress">
+                <div class="su-progress-row">
+                    <span class="su-step-label">Step <span id="currentStepNumber">1</span> of 7</span>
+                    <span class="mono su-percent"><span id="progressPercent">14</span>%</span>
+                </div>
+                <div class="bar"><span id="progressBar"></span></div>
             </div>
 
-            <form id="signupForm" class="signup-form">
-                <!-- Progress Bar -->
-                <div class="progress-container">
-                    <div class="progress-info">
-                        <span class="progress-text">Step <span id="currentStepNumber">1</span> of 7</span>
-                        <span class="progress-percentage"><span id="progressPercent">14</span>%</span>
-                    </div>
-                    <div class="progress-bar-bg">
-                        <div class="progress-bar-fill" id="progressBar" style="width: 14.3%"></div>
-                    </div>
-                </div>
-                <!-- Step 1: Name & Location -->
-                <div class="form-step active" id="step1">
-                    <h2>About You</h2>
-                    <p class="step-description">Let's start with your name and where you're located</p>
+            <div class="form-step active" id="step1">
+                <h2 class="su-step-title">About you</h2>
+                <p class="su-step-sub">Let us start with your name and where you are located.</p>
 
-                    <div class="form-group">
-                        <label for="fullName">
-                            <i class="fas fa-user"></i> Full Name
-                        </label>
-                        <input type="text" id="fullName" name="fullName" placeholder="Enter your full name" required>
-                    </div>
+                {% call field('Full name', 'fullName') %}<input type="text" id="fullName" name="fullName" class="input" placeholder="Enter your full name" required>{% endcall %}
 
-                    <div id="provinceFieldGroup" class="field-group hidden">
-                        <div class="form-group">
-                            <label for="province">
-                                <i class="fas fa-map-marker-alt"></i> Province
-                            </label>
-                            <select id="province" name="province" required>
-                                <option value="">Select your province</option>
-                                <option value="AB">Alberta</option>
-                                <option value="BC">British Columbia</option>
-                                <option value="MB">Manitoba</option>
-                                <option value="NB">New Brunswick</option>
-                                <option value="NL">Newfoundland and Labrador</option>
-                                <option value="NS">Nova Scotia</option>
-                                <option value="ON">Ontario</option>
-                                <option value="PE">Prince Edward Island</option>
-                                <option value="QC">Quebec</option>
-                                <option value="SK">Saskatchewan</option>
-                                <option value="NT">Northwest Territories</option>
-                                <option value="NU">Nunavut</option>
-                                <option value="YT">Yukon</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <button type="button" class="btn btn-primary" onclick="nextStep(2)">
-                        Continue <i class="fas fa-arrow-right"></i>
-                    </button>
+                <div id="provinceFieldGroup" class="field-group hidden">
+                    {% call field('Province', 'province') %}
+                    <select id="province" name="province" class="select" required>
+                        <option value="">Select your province</option>
+                        <option value="AB">Alberta</option><option value="BC">British Columbia</option>
+                        <option value="MB">Manitoba</option><option value="NB">New Brunswick</option>
+                        <option value="NL">Newfoundland and Labrador</option><option value="NS">Nova Scotia</option>
+                        <option value="ON">Ontario</option><option value="PE">Prince Edward Island</option>
+                        <option value="QC">Quebec</option><option value="SK">Saskatchewan</option>
+                        <option value="NT">Northwest Territories</option><option value="NU">Nunavut</option>
+                        <option value="YT">Yukon</option>
+                    </select>
+                    {% endcall %}
                 </div>
 
-                <!-- Step 2: Employment, Life Stage & Household -->
-                <div class="form-step" id="step2">
-                    <h2>Your Situation</h2>
-                    <p class="step-description">Help us understand your current situation</p>
+                <div class="su-actions">
+                    <button type="button" class="btn btn-primary su-grow" onclick="nextStep(2)">Continue</button>
+                </div>
+            </div>
 
-                    <div class="form-group">
-                        <label for="lifeStage">
-                            <i class="fas fa-chart-line"></i> Life Stage
-                        </label>
-                        <select id="lifeStage" name="lifeStage" required>
-                            <option value="">Select your life stage</option>
-                            <option value="student">Student</option>
-                            <option value="early-career">Early Career (18-30)</option>
-                            <option value="mid-career">Mid Career (30-50)</option>
-                            <option value="pre-retirement">Pre-Retirement (50-65)</option>
-                            <option value="retired">Retired (65+)</option>
-                        </select>
-                    </div>
+            <div class="form-step" id="step2">
+                <h2 class="su-step-title">Your situation</h2>
+                <p class="su-step-sub">Help us understand where you are right now.</p>
 
-                    <div id="employmentFieldGroup" class="field-group hidden">
-                        <div class="form-group">
-                            <label for="employmentStatus">
-                                <i class="fas fa-briefcase"></i> Employment Status
-                            </label>
-                            <select id="employmentStatus" name="employmentStatus" required>
-                                <option value="">Select your employment status</option>
-                                <option value="employed-full">Employed Full-Time</option>
-                                <option value="employed-part">Employed Part-Time</option>
-                                <option value="self-employed">Self-Employed</option>
-                                <option value="unemployed">Unemployed</option>
-                                <option value="student">Student</option>
-                                <option value="retired">Retired</option>
-                            </select>
-                        </div>
-                    </div>
+                {% call field('Life stage', 'lifeStage') %}
+                <select id="lifeStage" name="lifeStage" class="select" required>
+                    <option value="">Select your life stage</option>
+                    <option value="student">Student</option>
+                    <option value="early-career">Early Career (18-30)</option>
+                    <option value="mid-career">Mid Career (30-50)</option>
+                    <option value="pre-retirement">Pre-Retirement (50-65)</option>
+                    <option value="retired">Retired (65+)</option>
+                </select>
+                {% endcall %}
 
-                    <div id="householdFieldGroup" class="field-group hidden">
-                        <div class="form-group">
-                            <label for="householdStatus">
-                                <i class="fas fa-home"></i> Household Status
-                            </label>
-                            <select id="householdStatus" name="householdStatus" required>
-                                <option value="">Select your household status</option>
-                                <option value="single">Single</option>
-                                <option value="married">Married</option>
-                                <option value="common-law">Common-Law</option>
-                                <option value="single-parent">Single Parent</option>
-                                <option value="living-with-family">Living with Family</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="button-group">
-                        <button type="button" class="btn btn-secondary" onclick="prevStep(1)">
-                            <i class="fas fa-arrow-left"></i> Back
-                        </button>
-                        <button type="button" class="btn btn-primary" onclick="nextStep(3)">
-                            Continue <i class="fas fa-arrow-right"></i>
-                        </button>
-                    </div>
+                <div id="employmentFieldGroup" class="field-group hidden">
+                    {% call field('Employment status', 'employmentStatus') %}
+                    <select id="employmentStatus" name="employmentStatus" class="select" required>
+                        <option value="">Select your employment status</option>
+                        <option value="employed-full">Employed Full-Time</option>
+                        <option value="employed-part">Employed Part-Time</option>
+                        <option value="self-employed">Self-Employed</option>
+                        <option value="unemployed">Unemployed</option>
+                        <option value="student">Student</option>
+                        <option value="retired">Retired</option>
+                    </select>
+                    {% endcall %}
                 </div>
 
-                <!-- Step 3: Financial Goals -->
-                <div class="form-step" id="step3">
-                    <h2>Your Financial Goals</h2>
-                    <p class="step-description">What are you looking to achieve?</p>
-
-                    <div class="form-group">
-                        <label>
-                            <i class="fas fa-bullseye"></i> Financial Goals
-                        </label>
-                        <p class="field-hint">Select all that apply</p>
-                        <div class="checkbox-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="goals" value="emergency-fund">
-                                <span>Build Emergency Fund</span>
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="goals" value="pay-debt">
-                                <span>Pay Off Debt</span>
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="goals" value="save-home">
-                                <span>Save for a Home</span>
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="goals" value="retirement">
-                                <span>Save for Retirement</span>
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="goals" value="investment">
-                                <span>Grow Investments</span>
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="goals" value="education">
-                                <span>Save for Education</span>
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="goals" value="general-savings">
-                                <span>General Savings</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="button-group">
-                        <button type="button" class="btn btn-secondary" onclick="prevStep(2)">
-                            <i class="fas fa-arrow-left"></i> Back
-                        </button>
-                        <button type="button" class="btn btn-primary" onclick="nextStep(4)">
-                            Continue <i class="fas fa-arrow-right"></i>
-                        </button>
-                    </div>
+                <div id="householdFieldGroup" class="field-group hidden">
+                    {% call field('Household status', 'householdStatus') %}
+                    <select id="householdStatus" name="householdStatus" class="select" required>
+                        <option value="">Select your household status</option>
+                        <option value="single">Single</option><option value="married">Married</option>
+                        <option value="common-law">Common-Law</option><option value="single-parent">Single Parent</option>
+                        <option value="living-with-family">Living with Family</option>
+                    </select>
+                    {% endcall %}
                 </div>
 
-                <!-- Step 4: Existing Registered Accounts -->
-                <div class="form-step" id="step4">
-                    <h2>Existing Registered Accounts</h2>
-                    <p class="step-description">Do you have any of these Canadian registered accounts?</p>
+                {{ nav_buttons(1, 'Continue', false) }}
+            </div>
 
-                    <div class="form-group">
-                        <label>
-                            <i class="fas fa-piggy-bank"></i> Registered Accounts
-                        </label>
-                        <p class="field-hint">Select all that apply (optional)</p>
-                        <div class="checkbox-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="accounts" value="tfsa">
-                                <span>TFSA (Tax-Free Savings Account)</span>
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="accounts" value="rrsp">
-                                <span>RRSP (Registered Retirement Savings Plan)</span>
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="accounts" value="resp">
-                                <span>RESP (Registered Education Savings Plan)</span>
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="accounts" value="fhsa">
-                                <span>FHSA (First Home Savings Account)</span>
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="accounts" value="none">
-                                <span>None</span>
-                            </label>
-                        </div>
-                    </div>
+            <div class="form-step" id="step3">
+                <h2 class="su-step-title">Your financial goals</h2>
+                <p class="su-step-sub">What are you looking to achieve? Select all that apply.</p>
+                <div class="su-checks">
+                    {{ checkbox_pill('goals', 'emergency-fund', 'Build Emergency Fund') }}
+                    {{ checkbox_pill('goals', 'pay-debt', 'Pay Off Debt') }}
+                    {{ checkbox_pill('goals', 'save-home', 'Save for a Home') }}
+                    {{ checkbox_pill('goals', 'retirement', 'Save for Retirement') }}
+                    {{ checkbox_pill('goals', 'investment', 'Grow Investments') }}
+                    {{ checkbox_pill('goals', 'education', 'Save for Education') }}
+                    {{ checkbox_pill('goals', 'general-savings', 'General Savings') }}
+                </div>
+                {{ nav_buttons(2, 'Continue', false) }}
+            </div>
 
-                    <div class="button-group">
-                        <button type="button" class="btn btn-secondary" onclick="prevStep(3)">
-                            <i class="fas fa-arrow-left"></i> Back
-                        </button>
-                        <button type="button" class="btn btn-primary" onclick="nextStep(5)">
-                            Continue <i class="fas fa-arrow-right"></i>
-                        </button>
-                    </div>
+            <div class="form-step" id="step4">
+                <h2 class="su-step-title">Existing registered accounts</h2>
+                <p class="su-step-sub">Do you have any of these Canadian registered accounts? Optional.</p>
+                <div class="su-checks">
+                    {{ checkbox_pill('accounts', 'tfsa', 'TFSA (Tax-Free Savings Account)') }}
+                    {{ checkbox_pill('accounts', 'rrsp', 'RRSP (Registered Retirement Savings Plan)') }}
+                    {{ checkbox_pill('accounts', 'resp', 'RESP (Registered Education Savings Plan)') }}
+                    {{ checkbox_pill('accounts', 'fhsa', 'FHSA (First Home Savings Account)') }}
+                    {{ checkbox_pill('accounts', 'none', 'None') }}
+                </div>
+                {{ nav_buttons(3, 'Continue', false) }}
+            </div>
+
+            <div class="form-step" id="step5">
+                <h2 class="su-step-title">Initial account balances</h2>
+                <p class="su-step-sub">Enter your current balances to get started.</p>
+
+                {{ balance_field('chequingBalance', 'Chequing account', none) }}
+                {{ balance_field('cashBalance', 'Cash', none) }}
+
+                <div class="account-input-group hidden" id="tfsaBalanceGroup">{{ balance_field('tfsaBalance', 'TFSA total contributed', 'Total amount deposited (not including gains)') }}</div>
+                <div class="account-input-group hidden" id="rrspBalanceGroup">{{ balance_field('rrspBalance', 'RRSP total contributed', 'Total amount deposited (not including gains)') }}</div>
+                <div class="account-input-group hidden" id="respBalanceGroup">{{ balance_field('respBalance', 'RESP total contributed', 'Total amount deposited (not including gains)') }}</div>
+                <div class="account-input-group hidden" id="fhsaBalanceGroup">{{ balance_field('fhsaBalance', 'FHSA total contributed', 'Total amount deposited (not including gains)') }}</div>
+
+                {{ nav_buttons(4, 'Continue', false) }}
+            </div>
+
+            <div class="form-step" id="step6">
+                <h2 class="su-step-title">Budget categories</h2>
+                <p class="su-step-sub">Set up your monthly budget. You can modify these later.</p>
+
+                <div class="su-total">
+                    <div class="label">Total monthly budget</div>
+                    <div id="totalBudget" class="su-total-value">$2,900.00</div>
                 </div>
 
-                <!-- Step 5: Initial Account Balances -->
-                <div class="form-step" id="step5">
-                    <h2>Initial Account Balances</h2>
-                    <p class="step-description">Enter your current account balances to get started</p>
+                <p class="su-tip"><strong>Tip:</strong> Start with realistic estimates. You can adjust these anytime from your dashboard.</p>
 
-                    <!-- Basic accounts (always shown) -->
-                    <div class="account-input-group">
-                        <label for="chequingBalance">
-                            <i class="fas fa-credit-card"></i>
-                            <span>Chequing Account</span>
-                        </label>
-                        <div class="input-with-prefix">
-                            <span class="prefix">$</span>
-                            <input type="number" id="chequingBalance" name="chequingBalance" placeholder="0.00" step="0.01" value="0">
-                        </div>
-                    </div>
-
-                    <div class="account-input-group">
-                        <label for="cashBalance">
-                            <i class="fas fa-money-bill-wave"></i>
-                            <span>Cash</span>
-                        </label>
-                        <div class="input-with-prefix">
-                            <span class="prefix">$</span>
-                            <input type="number" id="cashBalance" name="cashBalance" placeholder="0.00" step="0.01" value="0">
-                        </div>
-                    </div>
-
-                    <!-- Registered accounts (shown based on Step 4 selections) -->
-                    <div class="account-input-group hidden" id="tfsaBalanceGroup">
-                        <label for="tfsaBalance">
-                            <i class="fas fa-piggy-bank"></i>
-                            <span>TFSA Total Contributed</span>
-                        </label>
-                        <div class="input-with-prefix">
-                            <span class="prefix">$</span>
-                            <input type="number" id="tfsaBalance" name="tfsaBalance" placeholder="0.00" step="0.01" value="0">
-                        </div>
-                        <span class="field-hint">Total amount deposited (not including gains)</span>
-                    </div>
-
-                    <div class="account-input-group hidden" id="rrspBalanceGroup">
-                        <label for="rrspBalance">
-                            <i class="fas fa-chart-line"></i>
-                            <span>RRSP Total Contributed</span>
-                        </label>
-                        <div class="input-with-prefix">
-                            <span class="prefix">$</span>
-                            <input type="number" id="rrspBalance" name="rrspBalance" placeholder="0.00" step="0.01" value="0">
-                        </div>
-                        <span class="field-hint">Total amount deposited (not including gains)</span>
-                    </div>
-
-                    <div class="account-input-group hidden" id="respBalanceGroup">
-                        <label for="respBalance">
-                            <i class="fas fa-graduation-cap"></i>
-                            <span>RESP Total Contributed</span>
-                        </label>
-                        <div class="input-with-prefix">
-                            <span class="prefix">$</span>
-                            <input type="number" id="respBalance" name="respBalance" placeholder="0.00" step="0.01" value="0">
-                        </div>
-                        <span class="field-hint">Total amount deposited (not including gains)</span>
-                    </div>
-
-                    <div class="account-input-group hidden" id="fhsaBalanceGroup">
-                        <label for="fhsaBalance">
-                            <i class="fas fa-home"></i>
-                            <span>FHSA Total Contributed</span>
-                        </label>
-                        <div class="input-with-prefix">
-                            <span class="prefix">$</span>
-                            <input type="number" id="fhsaBalance" name="fhsaBalance" placeholder="0.00" step="0.01" value="0">
-                        </div>
-                        <span class="field-hint">Total amount deposited (not including gains)</span>
-                    </div>
-
-                    <div class="button-group">
-                        <button type="button" class="btn btn-secondary" onclick="prevStep(4)">
-                            <i class="fas fa-arrow-left"></i> Back
-                        </button>
-                        <button type="button" class="btn btn-primary" onclick="nextStep(6)">
-                            Continue <i class="fas fa-arrow-right"></i>
-                        </button>
-                    </div>
+                <div class="su-grid">
+                    {{ budget_field('budgetFood', 'Food and groceries', '500.00', '500') }}
+                    {{ budget_field('budgetTransport', 'Transportation', '300.00', '300') }}
+                    {{ budget_field('budgetHousing', 'Housing', '1500.00', '1500') }}
+                    {{ budget_field('budgetEntertainment', 'Entertainment', '200.00', '200') }}
+                    {{ budget_field('budgetUtilities', 'Utilities', '150.00', '150') }}
+                    {{ budget_field('budgetShopping', 'Shopping', '250.00', '250') }}
                 </div>
 
-                <!-- Step 6: Budget Categories -->
-                <div class="form-step" id="step6">
-                    <h2>Budget Categories</h2>
-                    <p class="step-description">Set up your monthly budget categories (you can modify these later)</p>
+                {{ nav_buttons(5, 'Continue', false) }}
+            </div>
 
-                    <!-- Budget Summary -->
-                    <div class="budget-summary">
-                        <h3>Total Monthly Budget</h3>
-                        <div class="total-amount" id="totalBudget">$2,900.00</div>
+            <div class="form-step" id="step7">
+                <h2 class="su-step-title">Create your login</h2>
+                <p class="su-step-sub">Finally, set up your credentials.</p>
+
+                {% call field('Email address', 'email') %}<input type="email" id="email" name="email" class="input" placeholder="Enter your email address" required>{% endcall %}
+
+                <div id="passwordFieldsGroup" class="field-group hidden">
+                    {% call field('Password', 'password') %}
+                    <div class="su-pw">
+                        <input type="password" id="password" name="password" class="input" placeholder="Min 6 characters" required>
+                        {{ eye_toggle('password') }}
                     </div>
-
-                    <div class="budget-tip">
-                        <i class="fas fa-lightbulb"></i>
-                        <strong>Tip:</strong> Start with realistic estimates. You can adjust these anytime from your dashboard.
+                    {% endcall %}
+                    {% call field('Confirm password', 'confirmPassword') %}
+                    <div class="su-pw">
+                        <input type="password" id="confirmPassword" name="confirmPassword" class="input" placeholder="Confirm your password" required>
+                        {{ eye_toggle('confirmPassword') }}
                     </div>
-
-                    <div class="categories-grid">
-                        <div class="category-input">
-                            <label>
-                                <i class="fas fa-utensils"></i> Food & Groceries
-                            </label>
-                            <div class="input-with-prefix">
-                                <span class="prefix">$</span>
-                                <input type="number" name="budgetFood" placeholder="500.00" step="0.01" value="500">
-                            </div>
-                        </div>
-
-                        <div class="category-input">
-                            <label>
-                                <i class="fas fa-car"></i> Transportation
-                            </label>
-                            <div class="input-with-prefix">
-                                <span class="prefix">$</span>
-                                <input type="number" name="budgetTransport" placeholder="300.00" step="0.01" value="300">
-                            </div>
-                        </div>
-
-                        <div class="category-input">
-                            <label>
-                                <i class="fas fa-home"></i> Housing
-                            </label>
-                            <div class="input-with-prefix">
-                                <span class="prefix">$</span>
-                                <input type="number" name="budgetHousing" placeholder="1500.00" step="0.01" value="1500">
-                            </div>
-                        </div>
-
-                        <div class="category-input">
-                            <label>
-                                <i class="fas fa-film"></i> Entertainment
-                            </label>
-                            <div class="input-with-prefix">
-                                <span class="prefix">$</span>
-                                <input type="number" name="budgetEntertainment" placeholder="200.00" step="0.01" value="200">
-                            </div>
-                        </div>
-
-                        <div class="category-input">
-                            <label>
-                                <i class="fas fa-bolt"></i> Utilities
-                            </label>
-                            <div class="input-with-prefix">
-                                <span class="prefix">$</span>
-                                <input type="number" name="budgetUtilities" placeholder="150.00" step="0.01" value="150">
-                            </div>
-                        </div>
-
-                        <div class="category-input">
-                            <label>
-                                <i class="fas fa-shopping-bag"></i> Shopping
-                            </label>
-                            <div class="input-with-prefix">
-                                <span class="prefix">$</span>
-                                <input type="number" name="budgetShopping" placeholder="250.00" step="0.01" value="250">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="button-group">
-                        <button type="button" class="btn btn-secondary" onclick="prevStep(5)">
-                            <i class="fas fa-arrow-left"></i> Back
-                        </button>
-                        <button type="button" class="btn btn-primary" onclick="nextStep(7)">
-                            Continue <i class="fas fa-arrow-right"></i>
-                        </button>
-                    </div>
+                    {% endcall %}
                 </div>
 
-                <!-- Step 7: Create Account -->
-                <div class="form-step" id="step7">
-                    <h2>Create Your Account</h2>
-                    <p class="step-description">Finally, set up your login credentials</p>
+                {{ nav_buttons(6, none, true) }}
+            </div>
+        </form>
+    </div>
+</main>
 
-                    <div class="form-group">
-                        <label for="email">
-                            <i class="fas fa-envelope"></i> Email Address
-                        </label>
-                        <input type="email" id="email" name="email" placeholder="Enter your email address" required>
-                    </div>
-
-                    <div id="passwordFieldsGroup" class="field-group hidden">
-                        <div class="form-group">
-                            <label for="password">
-                                <i class="fas fa-lock"></i> Password
-                            </label>
-                            <div class="password-input-wrapper">
-                                <input type="password" id="password" name="password" placeholder="Enter a strong password (min 6 characters)" required>
-                                <button type="button" class="toggle-password" data-target="password" aria-label="Toggle password visibility">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="confirmPassword">
-                                <i class="fas fa-lock"></i> Confirm Password
-                            </label>
-                            <div class="password-input-wrapper">
-                                <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Confirm your password" required>
-                                <button type="button" class="toggle-password" data-target="confirmPassword" aria-label="Toggle password visibility">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="button-group">
-                        <button type="button" class="btn btn-secondary" onclick="prevStep(6)">
-                            <i class="fas fa-arrow-left"></i> Back
-                        </button>
-                        <button type="submit" class="btn btn-success">
-                            <i class="fas fa-check"></i> Complete Setup
-                        </button>
-                    </div>
-                </div>
-            </form>
-
-            <div class="signup-footer">
-                <p>Already have an account? <a href="/login">Sign in</a></p>
+<div id="questionnaireOverlay" class="modal show hidden">
+    <div class="modal-box su-q-box">
+        <div class="modal-head su-q-head">
+            <div>
+                <h2 class="modal-title">One more thing</h2>
+                <p class="su-step-sub su-q-sub">Help us set up your registered account limits.</p>
             </div>
         </div>
-    </div>
 
-    <!-- Account Questionnaire Modal -->
-    <div id="questionnaireOverlay" class="questionnaire-overlay hidden">
-        <div class="questionnaire-modal">
-            <div class="questionnaire-header">
-                <i class="fas fa-clipboard-list"></i>
-                <h2>One More Thing!</h2>
-                <p>Help us set up your registered account limits</p>
+        <form id="questionnaireForm" class="modal-body">
+            <div id="qAge" class="su-field">
+                <span class="field-label">Date of birth</span>
+                <div class="form-row">
+                    <div class="su-w2">
+                        <label for="qDobMonth" class="su-sublabel">Month</label>
+                        <select id="qDobMonth" class="select" required>{{ month_options() }}</select>
+                    </div>
+                    <div>
+                        <label for="qDobDay" class="su-sublabel">Day</label>
+                        <input type="number" id="qDobDay" class="input" min="1" max="31" required>
+                    </div>
+                    <div>
+                        <label for="qDobYear" class="su-sublabel">Year</label>
+                        <input type="number" id="qDobYear" class="input" min="1920" max="2010" required>
+                    </div>
+                </div>
+                <span class="su-hint">Used to calculate your contribution room</span>
             </div>
 
-            <form id="questionnaireForm" class="questionnaire-body">
-                <!-- Date of Birth -->
-                <div class="questionnaire-section" id="qAge">
-                    <div class="form-group">
-                        <label>
-                            <i class="fas fa-birthday-cake"></i> Date of Birth
-                        </label>
-                        <div class="date-picker-group">
-                            <div class="date-select-wrapper">
-                                <label class="date-select-label">Month</label>
-                                <select id="qDobMonth" class="date-select" required>
-                                    <option value="" disabled selected></option>
-                                    <option value="1">January</option>
-                                    <option value="2">February</option>
-                                    <option value="3">March</option>
-                                    <option value="4">April</option>
-                                    <option value="5">May</option>
-                                    <option value="6">June</option>
-                                    <option value="7">July</option>
-                                    <option value="8">August</option>
-                                    <option value="9">September</option>
-                                    <option value="10">October</option>
-                                    <option value="11">November</option>
-                                    <option value="12">December</option>
-                                </select>
-                            </div>
-                            <div class="date-select-wrapper date-select-small">
-                                <label class="date-select-label">Day</label>
-                                <input type="number" id="qDobDay" class="date-select" min="1" max="31" required>
-                            </div>
-                            <div class="date-select-wrapper date-select-small">
-                                <label class="date-select-label">Year</label>
-                                <input type="number" id="qDobYear" class="date-select" min="1920" max="2010" required>
-                            </div>
-                        </div>
-                        <span class="field-hint">Used to calculate your contribution room</span>
-                    </div>
+            <div id="qResidency" class="su-field">
+                <span class="field-label">Were you a Canadian resident before age 18?</span>
+                <div class="su-radios">
+                    <label class="su-radio"><input type="radio" name="residentBefore18" value="yes" required> Yes</label>
+                    <label class="su-radio"><input type="radio" name="residentBefore18" value="no"> No</label>
                 </div>
-
-                <!-- Canadian Residency -->
-                <div class="questionnaire-section" id="qResidency">
-                    <div class="form-group">
-                        <label>
-                            <i class="fas fa-flag"></i> Were you a Canadian resident before age 18?
-                        </label>
-                        <div class="radio-group">
-                            <label class="radio-option">
-                                <input type="radio" name="residentBefore18" value="yes" required>
-                                <span>Yes</span>
-                            </label>
-                            <label class="radio-option">
-                                <input type="radio" name="residentBefore18" value="no">
-                                <span>No</span>
-                            </label>
+                <div id="residencyDateGroup" class="su-res-date">
+                    <span class="field-label">Date you became a Canadian resident</span>
+                    <div class="form-row">
+                        <div class="su-w2">
+                            <label for="qResMonth" class="su-sublabel">Month</label>
+                            <select id="qResMonth" class="select">{{ month_options() }}</select>
+                        </div>
+                        <div>
+                            <label for="qResDay" class="su-sublabel">Day</label>
+                            <input type="number" id="qResDay" class="input" min="1" max="31">
+                        </div>
+                        <div>
+                            <label for="qResYear" class="su-sublabel">Year</label>
+                            <input type="number" id="qResYear" class="input" min="1920" max="2026">
                         </div>
                     </div>
-                    <div id="residencyDateGroup" style="display: none;">
-                        <div class="form-group">
-                            <label>
-                                <i class="fas fa-calendar-alt"></i> Date You Became a Canadian Resident
-                            </label>
-                            <div class="date-picker-group">
-                                <div class="date-select-wrapper">
-                                    <label class="date-select-label">Month</label>
-                                    <select id="qResMonth" class="date-select">
-                                        <option value="" disabled selected></option>
-                                        <option value="1">January</option>
-                                        <option value="2">February</option>
-                                        <option value="3">March</option>
-                                        <option value="4">April</option>
-                                        <option value="5">May</option>
-                                        <option value="6">June</option>
-                                        <option value="7">July</option>
-                                        <option value="8">August</option>
-                                        <option value="9">September</option>
-                                        <option value="10">October</option>
-                                        <option value="11">November</option>
-                                        <option value="12">December</option>
-                                    </select>
-                                </div>
-                                <div class="date-select-wrapper date-select-small">
-                                    <label class="date-select-label">Day</label>
-                                    <input type="number" id="qResDay" class="date-select" min="1" max="31">
-                                </div>
-                                <div class="date-select-wrapper date-select-small">
-                                    <label class="date-select-label">Year</label>
-                                    <input type="number" id="qResYear" class="date-select" min="1920" max="2026">
-                                </div>
-                            </div>
-                            <span class="field-hint">TFSA room starts from this date instead of when you turned 18</span>
-                        </div>
-                    </div>
+                    <span class="su-hint">TFSA room starts from this date instead of when you turned 18</span>
                 </div>
+            </div>
 
-                <!-- TFSA Holdings Setup -->
-                <div class="questionnaire-section" id="qHoldings" style="display: none;">
-                    <h3><i class="fas fa-briefcase"></i> Your TFSA Holdings</h3>
-                    <p class="step-description">Add the stocks/ETFs currently in your TFSA</p>
+            <div id="qHoldings" class="su-holdings">
+                <h3 class="su-q-h3">Your TFSA holdings</h3>
+                <p class="su-step-sub">Add the stocks and ETFs currently in your TFSA.</p>
+                <div id="holdingsRows"></div>
+                <button type="button" id="addHoldingRow" class="btn btn-outline btn-sm">Add holding</button>
+            </div>
 
-                    <div id="holdingsRows">
-                        <!-- Holding rows added dynamically -->
-                    </div>
-
-                    <button type="button" class="btn btn-outline" id="addHoldingRow">
-                        <i class="fas fa-plus"></i> Add Holding
-                    </button>
-                </div>
-
-                <div class="questionnaire-actions">
-                    <button type="button" class="btn btn-secondary" id="skipQuestionnaire">
-                        Skip for Now
-                    </button>
-                    <button type="submit" class="btn btn-success">
-                        <i class="fas fa-check"></i> Save & Continue
-                    </button>
-                </div>
-            </form>
-        </div>
+            <div class="su-actions">
+                <button type="button" id="skipQuestionnaire" class="btn btn-outline">Skip for now</button>
+                <button type="submit" class="btn btn-primary su-grow">Save and continue</button>
+            </div>
+        </form>
     </div>
+</div>
 
-    <!-- Loading Overlay -->
-    <div id="loadingOverlay" class="loading-overlay hidden">
-        <div class="spinner"></div>
-        <p>Setting up your account...</p>
-    </div>
+<div id="loadingOverlay" class="loading-overlay hidden">
+    <div class="spinner"></div>
+    <p>Setting up your account...</p>
+</div>
 
-    <script src="{{ url_for('static', filename='js/signup.js') }}"></script>
+<script src="{{ url_for('static', filename='js/signup.js') }}"></script>
 </body>
 </html>

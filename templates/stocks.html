@@ -1,128 +1,110 @@
 {% extends "base.html" %}
 
-{% block title %}Investments — Financial Manager{% endblock %}
+{% block title %}Investments — Tide{% endblock %}
 
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/stocks.css') }}">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 {% endblock %}
 
-{% block header_actions %}
-<div class="header-page-actions">
-    <button class="btn btn-info btn-sm" onclick="showTradeModal()">
-        <i class="fas fa-exchange-alt"></i> Trade
-    </button>
-    <button class="btn btn-warning btn-sm" onclick="showHoldingModal()">
-        <i class="fas fa-briefcase"></i> Holding
-    </button>
-</div>
-{% endblock %}
-
 {% block content %}
-<main class="main-content">
-    <!-- Compact Stats Row -->
-    <div class="stats-strip">
-        <div class="strip-stat">
-            <span class="strip-label">Market Value</span>
-            <span class="strip-value" id="marketValue">$0.00</span>
+<main class="page">
+    <div class="page-head">
+        <div>
+            <h1 class="page-title">Investments</h1>
+            <p class="page-sub">Registered and non-registered accounts.</p>
         </div>
-        <div class="strip-stat">
-            <span class="strip-label">Book Value</span>
-            <span class="strip-value" id="bookValue">$0.00</span>
-        </div>
-        <div class="strip-stat">
-            <span class="strip-label">Gain/Loss</span>
-            <span class="strip-value" id="gainLoss">$0.00</span>
+        <div class="page-actions">
+            <button type="button" onclick="showTradeModal()" class="btn btn-primary">Add trade</button>
+            <button type="button" onclick="showHoldingModal()" class="btn btn-outline">Add holding</button>
         </div>
     </div>
 
-    <!-- Charts Section -->
-    <div class="charts-grid">
-        <div class="card">
-            <div class="card-header">
-                <h2><i class="fas fa-chart-pie"></i> Portfolio Allocation</h2>
+    <section class="card card-lg hero-card" aria-label="Total portfolio">
+        <div>
+            <div class="label">Total portfolio</div>
+            <div id="marketValue" class="hero-total">$0.00</div>
+        </div>
+        <div class="hero-stats">
+            <div>
+                <div class="label">Invested</div>
+                <div id="bookValue" class="stat-value">$0.00</div>
             </div>
-            <div class="card-body">
-                <div class="chart-container-stocks">
-                    <canvas id="allocationChart"></canvas>
-                </div>
-                <div id="allocationLegend" class="allocation-legend"></div>
+            <div>
+                <div class="label">Growth</div>
+                <div id="gainLoss" class="stat-value">$0.00</div>
             </div>
         </div>
+    </section>
 
-        <div class="card">
-            <div class="card-header">
-                <h2><i class="fas fa-chart-bar"></i> Holdings Performance</h2>
-            </div>
-            <div class="card-body">
-                <div class="chart-container-stocks">
-                    <canvas id="performanceChart"></canvas>
-                </div>
-            </div>
-        </div>
+    <div class="chart-grid">
+        <section class="card" aria-label="Portfolio allocation">
+            <h2 class="card-title">Allocation</h2>
+            <div class="chart-box"><canvas id="allocationChart"></canvas></div>
+            <div id="allocationLegend" class="legend"></div>
+        </section>
+        <section class="card" aria-label="Holdings performance">
+            <h2 class="card-title">Holdings performance</h2>
+            <div class="chart-box tall"><canvas id="performanceChart"></canvas></div>
+        </section>
     </div>
 
-    <!-- Dashboard Grid -->
-    <div class="dashboard-grid">
-        <div class="card full-width">
-            <div class="card-header">
-                <h2><i class="fas fa-wallet"></i> Open Accounts</h2>
-            </div>
-            <div class="card-body" id="accountsContainer">
-                <!-- Account cards populated by JavaScript -->
-            </div>
-        </div>
-    </div>
+    <section class="card" aria-label="Open accounts">
+        <h2 class="card-title">Open accounts</h2>
+        <div id="accountsContainer"></div>
+    </section>
 </main>
 {% endblock %}
 
 {% block modals %}
 <!-- Add Trade Modal -->
 <div id="tradeModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2><i class="fas fa-exchange-alt"></i> Add Trade</h2>
-            <span class="close" onclick="closeTradeModal()">&times;</span>
+    <div class="modal-box">
+        <div class="modal-head">
+            <h2 class="modal-title">Add trade</h2>
+            <button type="button" class="modal-close" onclick="closeTradeModal()" aria-label="Close">&times;</button>
         </div>
         <div class="modal-body">
-            <form id="tradeForm">
-                <div class="form-group">
-                    <label for="tradeDate">Date</label>
-                    <input type="date" id="tradeDate" required>
+            <form id="tradeForm" class="modal-form">
+                <div class="field">
+                    <label class="field-label" for="tradeDate">Date</label>
+                    <input type="date" id="tradeDate" required class="input mono">
                 </div>
-                <div class="form-group">
-                    <label for="tradeAccount">Account</label>
-                    <select id="tradeAccount" required>
+                <div class="field">
+                    <label class="field-label" for="tradeAccount">Account</label>
+                    <select id="tradeAccount" required class="select">
                         <option value="TFSA">TFSA</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label for="tradeTicker">Ticker</label>
+                <div class="field">
+                    <label class="field-label" for="tradeTicker">Ticker</label>
                     <div class="ticker-autocomplete">
-                        <input type="text" id="tradeTicker" class="ticker-input" placeholder="Search ticker symbol or name..." autocomplete="off" required>
+                        <input type="text" id="tradeTicker" class="input ticker-input" placeholder="Search ticker symbol or name..." autocomplete="off" required>
                         <div id="tradeTickerDropdown" class="ticker-dropdown"></div>
                     </div>
                     <input type="hidden" id="tradeTickerSymbol">
                 </div>
-                <div class="form-group">
-                    <label for="tradeShares">Shares</label>
-                    <input type="number" id="tradeShares" step="0.0001" required>
+                <div class="form-grid">
+                    <div class="field">
+                        <label class="field-label" for="tradeShares">Shares</label>
+                        <input type="number" id="tradeShares" step="0.0001" required class="input mono">
+                    </div>
+                    <div class="field">
+                        <label class="field-label" for="tradeCost">Cost / share ($)</label>
+                        <input type="number" id="tradeCost" step="0.01" required class="input mono">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="tradeCost">Cost per Share ($)</label>
-                    <input type="number" id="tradeCost" step="0.01" required>
+                <div class="field">
+                    <label class="field-label" for="tradeFees">Fees ($)</label>
+                    <input type="number" id="tradeFees" step="0.01" value="0" class="input mono">
                 </div>
-                <div class="form-group">
-                    <label for="tradeFees">Fees ($)</label>
-                    <input type="number" id="tradeFees" step="0.01" value="0">
-                </div>
-                <div class="form-group">
-                    <label>Total Cost</label>
-                    <p class="calculated-value" id="totalCost">$0.00</p>
+                <div class="total-card">
+                    <div class="label">Total cost</div>
+                    <div id="totalCost" class="total-value">$0.00</div>
                 </div>
                 <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeTradeModal()">Cancel</button>
-                    <button type="submit" class="btn btn-info">Add Trade</button>
+                    <button type="button" onclick="closeTradeModal()" class="btn btn-outline">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add trade</button>
                 </div>
             </form>
         </div>
@@ -131,42 +113,44 @@
 
 <!-- Add Holding Modal -->
 <div id="holdingModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2><i class="fas fa-briefcase"></i> Add Holding</h2>
-            <span class="close" onclick="closeHoldingModal()">&times;</span>
+    <div class="modal-box">
+        <div class="modal-head">
+            <h2 class="modal-title">Add holding</h2>
+            <button type="button" class="modal-close" onclick="closeHoldingModal()" aria-label="Close">&times;</button>
         </div>
         <div class="modal-body">
-            <form id="holdingForm">
-                <div class="form-group">
-                    <label for="holdingAccount">Account</label>
-                    <select id="holdingAccount" required>
+            <form id="holdingForm" class="modal-form">
+                <div class="field">
+                    <label class="field-label" for="holdingAccount">Account</label>
+                    <select id="holdingAccount" required class="select">
                         <option value="TFSA">TFSA</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label for="holdingTicker">Ticker</label>
+                <div class="field">
+                    <label class="field-label" for="holdingTicker">Ticker</label>
                     <div class="ticker-autocomplete">
-                        <input type="text" id="holdingTicker" class="ticker-input" placeholder="Search ticker symbol or name..." autocomplete="off" required>
+                        <input type="text" id="holdingTicker" class="input ticker-input" placeholder="Search ticker symbol or name..." autocomplete="off" required>
                         <div id="holdingTickerDropdown" class="ticker-dropdown"></div>
                     </div>
                     <input type="hidden" id="holdingTickerSymbol">
                 </div>
-                <div class="form-group">
-                    <label for="holdingName">Company Name</label>
-                    <input type="text" id="holdingName" placeholder="e.g., Apple Inc." readonly>
+                <div class="field">
+                    <label class="field-label" for="holdingName">Company name</label>
+                    <input type="text" id="holdingName" placeholder="e.g., Apple Inc." readonly class="input">
                 </div>
-                <div class="form-group">
-                    <label for="holdingShares">Total Shares</label>
-                    <input type="number" id="holdingShares" step="0.0001" required>
-                </div>
-                <div class="form-group">
-                    <label for="holdingAvgCost">Average Cost ($)</label>
-                    <input type="number" id="holdingAvgCost" step="0.01" required>
+                <div class="form-grid">
+                    <div class="field">
+                        <label class="field-label" for="holdingShares">Total shares</label>
+                        <input type="number" id="holdingShares" step="0.0001" required class="input mono">
+                    </div>
+                    <div class="field">
+                        <label class="field-label" for="holdingAvgCost">Average cost ($)</label>
+                        <input type="number" id="holdingAvgCost" step="0.01" required class="input mono">
+                    </div>
                 </div>
                 <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeHoldingModal()">Cancel</button>
-                    <button type="submit" class="btn btn-warning">Add Holding</button>
+                    <button type="button" onclick="closeHoldingModal()" class="btn btn-outline">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add holding</button>
                 </div>
             </form>
         </div>
@@ -175,39 +159,41 @@
 
 <!-- Edit Holding Modal -->
 <div id="editHoldingModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2><i class="fas fa-edit"></i> Edit Holding</h2>
-            <span class="close" onclick="closeEditHoldingModal()">&times;</span>
+    <div class="modal-box">
+        <div class="modal-head">
+            <h2 class="modal-title">Edit holding</h2>
+            <button type="button" class="modal-close" onclick="closeEditHoldingModal()" aria-label="Close">&times;</button>
         </div>
         <div class="modal-body">
-            <form id="editHoldingForm">
+            <form id="editHoldingForm" class="modal-form">
                 <input type="hidden" id="editHoldingId">
-                <div class="form-group">
-                    <label for="editHoldingAccount">Account</label>
-                    <select id="editHoldingAccount" required>
+                <div class="field">
+                    <label class="field-label" for="editHoldingAccount">Account</label>
+                    <select id="editHoldingAccount" required class="select">
                         <option value="TFSA">TFSA</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label for="editHoldingTicker">Ticker</label>
-                    <input type="text" id="editHoldingTicker" required>
+                <div class="field">
+                    <label class="field-label" for="editHoldingTicker">Ticker</label>
+                    <input type="text" id="editHoldingTicker" required class="input mono">
                 </div>
-                <div class="form-group">
-                    <label for="editHoldingName">Company Name</label>
-                    <input type="text" id="editHoldingName">
+                <div class="field">
+                    <label class="field-label" for="editHoldingName">Company name</label>
+                    <input type="text" id="editHoldingName" class="input">
                 </div>
-                <div class="form-group">
-                    <label for="editHoldingShares">Total Shares</label>
-                    <input type="number" id="editHoldingShares" step="0.0001" required>
-                </div>
-                <div class="form-group">
-                    <label for="editHoldingAvgCost">Average Cost ($)</label>
-                    <input type="number" id="editHoldingAvgCost" step="0.01" required>
+                <div class="form-grid">
+                    <div class="field">
+                        <label class="field-label" for="editHoldingShares">Total shares</label>
+                        <input type="number" id="editHoldingShares" step="0.0001" required class="input mono">
+                    </div>
+                    <div class="field">
+                        <label class="field-label" for="editHoldingAvgCost">Average cost ($)</label>
+                        <input type="number" id="editHoldingAvgCost" step="0.01" required class="input mono">
+                    </div>
                 </div>
                 <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeEditHoldingModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="button" onclick="closeEditHoldingModal()" class="btn btn-outline">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save changes</button>
                 </div>
             </form>
         </div>
@@ -216,29 +202,25 @@
 
 <!-- Open New Account Modal -->
 <div id="newAccountModal" class="modal">
-    <div class="modal-content modal-small">
-        <div class="modal-header">
-            <h2><i class="fas fa-plus"></i> Open New Account</h2>
-            <span class="close" onclick="closeNewAccountModal()">&times;</span>
+    <div class="modal-box wide">
+        <div class="modal-head">
+            <h2 class="modal-title">Open new account</h2>
+            <button type="button" class="modal-close" onclick="closeNewAccountModal()" aria-label="Close">&times;</button>
         </div>
         <div class="modal-body">
-            <!-- Step 1: Account type selection -->
             <div id="newAccountStep1">
-                <p class="modal-subtitle">Select the type of investment account you'd like to open.</p>
-                <div id="newAccountOptions" class="new-account-options"></div>
+                <p class="muted mb-16">Select the type of investment account you would like to open.</p>
+                <div id="newAccountOptions" class="account-options"></div>
             </div>
-            <!-- Step 2: FHSA open year -->
-            <div id="fhsaYearStep" style="display:none;">
-                <button type="button" class="btn-back" onclick="showNewAccountStep1()">
-                    <i class="fas fa-arrow-left"></i> Back
-                </button>
-                <p class="modal-subtitle">What year did you open your FHSA?</p>
-                <p class="modal-hint">The FHSA was introduced in April 2023. Enter the calendar year your account was opened — this is used to calculate your accumulated contribution room.</p>
-                <div class="fhsa-year-input-row">
-                    <input type="number" id="fhsaOpenYearInput" class="form-input" min="2023" max="{{ now.year }}" placeholder="e.g. 2023" style="width:120px;">
-                    <button type="button" class="btn btn-primary" onclick="confirmAddFHSA()">Open Account</button>
+            <div id="fhsaYearStep" style="display:none">
+                <button type="button" onclick="showNewAccountStep1()" class="back-btn">&larr; Back</button>
+                <p class="strong mb-6">What year did you open your FHSA?</p>
+                <p class="muted small">The FHSA was introduced in April 2023. Enter the calendar year your account was opened. This is used to calculate your accumulated contribution room.</p>
+                <div class="year-row">
+                    <input type="number" id="fhsaOpenYearInput" min="2023" max="{{ now.year }}" placeholder="e.g. 2023" class="input" aria-label="FHSA open year">
+                    <button type="button" onclick="confirmAddFHSA()" class="btn btn-primary">Open account</button>
                 </div>
-                <p id="fhsaYearError" class="form-error" style="display:none;"></p>
+                <p id="fhsaYearError" class="form-error" style="display:none"></p>
             </div>
         </div>
     </div>
@@ -246,16 +228,16 @@
 
 <!-- Delete Confirmation Modal -->
 <div id="deleteConfirmModal" class="modal">
-    <div class="modal-content modal-small">
-        <div class="modal-header">
-            <h2><i class="fas fa-exclamation-triangle"></i> Confirm Delete</h2>
-            <span class="close" onclick="closeDeleteConfirmModal()">&times;</span>
+    <div class="modal-box narrow">
+        <div class="modal-head">
+            <h2 class="modal-title">Confirm delete</h2>
+            <button type="button" class="modal-close" onclick="closeDeleteConfirmModal()" aria-label="Close">&times;</button>
         </div>
         <div class="modal-body">
             <p id="deleteConfirmMessage">Are you sure you want to delete this item?</p>
             <div class="form-actions">
-                <button type="button" class="btn btn-secondary" onclick="closeDeleteConfirmModal()">Cancel</button>
-                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+                <button type="button" onclick="closeDeleteConfirmModal()" class="btn btn-outline">Cancel</button>
+                <button type="button" id="confirmDeleteBtn" class="btn btn-danger">Delete</button>
             </div>
         </div>
     </div>

@@ -1,212 +1,91 @@
 {% extends "base.html" %}
 
-{% block title %}Monthly Financial Diary — Financial Manager{% endblock %}
+{% block title %}Diary — Tide{% endblock %}
 
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/diary.css') }}">
 {% endblock %}
 
 {% block content %}
-<main class="main-content diary-main">
-
-    <!-- Month nav bar -->
-    <div class="diary-nav-bar">
-        <div class="diary-nav-left">
-            <button class="diary-nav-btn" onclick="changeMonth(-1)"><i class="fas fa-chevron-left"></i></button>
-            <input type="month" id="monthSelector" class="diary-month-input" onchange="onMonthChange()">
-            <button class="diary-nav-btn" onclick="changeMonth(1)"><i class="fas fa-chevron-right"></i></button>
+<main class="page">
+    <div class="page-head">
+        <div>
+            <h1 class="page-title">Diary</h1>
+            <p class="page-sub hero-sentence" id="diaryHeroSentence">Loading this month&rsquo;s numbers&hellip;</p>
         </div>
-        <div class="diary-nav-stats">
-            <span class="diary-nav-stat income" id="monthIncome">—</span>
-            <span class="diary-nav-stat-sep">·</span>
-            <span class="diary-nav-stat expense" id="monthExpenses">—</span>
-            <span class="diary-nav-stat-sep">·</span>
-            <span class="diary-nav-stat" id="monthNet">—</span>
-        </div>
-        <div class="diary-nav-right">
-            <button class="diary-icon-btn diary-add-btn" onclick="openAddModal()" title="Add transaction"><i class="fas fa-plus"></i></button>
-            <button class="diary-icon-btn" onclick="openUploadModal()" title="Import statement"><i class="fas fa-file-upload"></i></button>
-            <button class="diary-icon-btn" onclick="showDiaryList()" title="All entries"><i class="fas fa-clock-rotate-left"></i></button>
+        <div class="page-actions">
+            <button onclick="changeMonth(-1)" type="button" class="btn btn-outline btn-icon" aria-label="Previous month"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 4L6 8l4 4"/></svg></button>
+            <input type="month" id="monthSelector" onchange="onMonthChange()" class="input month-input" aria-label="Month">
+            <button onclick="changeMonth(1)" type="button" class="btn btn-outline btn-icon" aria-label="Next month"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4"/></svg></button>
+            <button onclick="showDiaryList()" type="button" class="btn btn-outline">All entries</button>
+            <button onclick="openAddModal()" type="button" class="btn btn-primary">Add transaction</button>
         </div>
     </div>
 
-    <!-- Transaction list -->
-    <div class="diary-tx-area" id="diaryTxArea">
-        <div class="diary-tx-empty" id="diaryTxEmpty" style="display:none;">
-            <i class="fas fa-receipt diary-tx-empty-icon"></i>
+    <section class="card month-stats" aria-label="Month summary">
+        <div><div class="label">Income</div><div id="monthIncome" class="stat-value pos">&mdash;</div></div>
+        <div><div class="label">Expenses</div><div id="monthExpenses" class="stat-value">&mdash;</div></div>
+        <div><div class="label">Net</div><div id="monthNet" class="stat-value">&mdash;</div></div>
+    </section>
+
+    <section class="card tx-card" aria-label="Transactions">
+        <div id="diaryTxEmpty" class="empty-state hidden">
             <p>No transactions for this month</p>
-            <button class="btn btn-primary btn-sm" onclick="openUploadModal()"><i class="fas fa-file-upload"></i> Import statement</button>
+            <button onclick="openAddModal()" type="button" class="btn btn-primary">Add transaction</button>
         </div>
-        <table class="diary-tx-table" id="diaryTxTable" style="display:none;">
+        <table id="diaryTxTable" class="table hidden">
             <thead>
                 <tr>
-                    <th>Date</th>
-                    <th>Description</th>
-                    <th>Category</th>
-                    <th>Account</th>
-                    <th style="text-align:right;">Amount</th>
+                    <th scope="col">Date</th>
+                    <th scope="col">Description</th>
+                    <th scope="col">Category</th>
+                    <th scope="col">Account</th>
+                    <th scope="col" class="num">Amount</th>
                 </tr>
             </thead>
             <tbody id="diaryTxBody"></tbody>
         </table>
-    </div>
-
+    </section>
 </main>
 {% endblock %}
 
 {% block modals %}
-<!-- Add Transaction Modal -->
 <div id="addTxModal" class="modal">
-    <div class="modal-content modal-small">
-        <div class="modal-header">
-            <h2>Add Transaction</h2>
-            <span class="close" onclick="closeAddModal()">&times;</span>
+    <div class="modal-box">
+        <div class="modal-head">
+            <h2 class="modal-title">Add transaction</h2>
+            <button onclick="closeAddModal()" type="button" class="modal-close" aria-label="Close">&times;</button>
         </div>
-        <div class="modal-body">
-            <div class="add-tx-form">
-                <div class="add-tx-row">
-                    <div class="add-tx-field">
-                        <label>Date</label>
-                        <input type="date" id="atDate">
-                    </div>
-                    <div class="add-tx-field">
-                        <label>Type</label>
-                        <select id="atType">
-                            <option value="Expense">Expense</option>
-                            <option value="Income">Income</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="add-tx-field">
-                    <label>Description</label>
-                    <input type="text" id="atName" placeholder="e.g. Grocery run">
-                </div>
-                <div class="add-tx-row">
-                    <div class="add-tx-field">
-                        <label>Category</label>
-                        <input type="text" id="atCategory" list="atCategoryList" placeholder="Select or type">
-                        <datalist id="atCategoryList"></datalist>
-                    </div>
-                    <div class="add-tx-field">
-                        <label>Account</label>
-                        <input type="text" id="atAccount" list="atAccountList" placeholder="Select or type">
-                        <datalist id="atAccountList"></datalist>
-                    </div>
-                </div>
-                <div class="add-tx-field">
-                    <label>Amount</label>
-                    <input type="number" id="atAmount" min="0" step="0.01" placeholder="0.00">
-                </div>
-                <div id="addTxError" class="upload-error" style="display:none;"></div>
+        <div class="modal-body stack">
+            <div class="form-row">
+                <label class="field"><span>Date</span><input type="date" id="atDate" class="input mono"></label>
+                <label class="field"><span>Type</span>
+                    <select id="atType" class="select"><option value="Expense">Expense</option><option value="Income">Income</option></select>
+                </label>
             </div>
+            <label class="field"><span>Description</span><input type="text" id="atName" placeholder="e.g. Grocery run" class="input"></label>
+            <div class="form-row">
+                <label class="field"><span>Category</span><input type="text" id="atCategory" list="atCategoryList" placeholder="Select or type" class="input"><datalist id="atCategoryList"></datalist></label>
+                <label class="field"><span>Account</span><input type="text" id="atAccount" list="atAccountList" placeholder="Select or type" class="input"><datalist id="atAccountList"></datalist></label>
+            </div>
+            <label class="field"><span>Amount</span><input type="number" id="atAmount" min="0" step="0.01" placeholder="0.00" class="input mono"></label>
+            <div id="addTxError" class="form-error hidden"></div>
         </div>
-        <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeAddModal()">Cancel</button>
-            <button class="btn btn-primary" onclick="submitAddTransaction()">Add</button>
+        <div class="modal-foot">
+            <button onclick="closeAddModal()" type="button" class="btn btn-outline">Cancel</button>
+            <button onclick="submitAddTransaction()" type="button" class="btn btn-primary">Add</button>
         </div>
     </div>
 </div>
 
-<!-- Diary List Modal -->
 <div id="diaryListModal" class="modal">
-    <div class="modal-content modal-small">
-        <div class="modal-header">
-            <h2>All Entries</h2>
-            <span class="close" onclick="closeDiaryList()">&times;</span>
+    <div class="modal-box">
+        <div class="modal-head">
+            <h2 class="modal-title">All entries</h2>
+            <button onclick="closeDiaryList()" type="button" class="modal-close" aria-label="Close">&times;</button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body diary-list-body">
             <div id="diaryListContent"></div>
-        </div>
-    </div>
-</div>
-
-<!-- Upload Statement Modal -->
-<div id="uploadModal" class="modal">
-    <div class="modal-content modal-small">
-        <div class="modal-header">
-            <h2>Import Statement</h2>
-            <span class="close" onclick="closeUploadModal()">&times;</span>
-        </div>
-        <div class="modal-body">
-            <p class="modal-subtitle">Claude AI will extract transactions and generate diary insights automatically.</p>
-            <div id="uploadDropZone" class="upload-drop-zone" onclick="document.getElementById('statementFile').click()">
-                <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
-                <div class="upload-text">Drag & drop or click to browse</div>
-                <div class="upload-hint">PDF or CSV · Max 15 MB</div>
-                <input type="file" id="statementFile" accept=".pdf,.csv" style="display:none;" onchange="handleFileSelect(event)">
-            </div>
-            <div id="uploadFileName" class="upload-file-name" style="display:none;"></div>
-            <div id="uploadError" class="upload-error" style="display:none;"></div>
-            <div class="upload-actions">
-                <button class="btn btn-secondary" onclick="closeUploadModal()">Cancel</button>
-                <button class="btn btn-primary" id="uploadBtn" onclick="parseStatement()" disabled>
-                    <i class="fas fa-magic"></i> Analyze
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Statement Preview Modal -->
-<div id="previewModal" class="modal">
-    <div class="modal-content modal-large">
-        <div class="modal-header">
-            <h2>Statement Preview — <span id="previewMonthLabel"></span></h2>
-            <span class="close" onclick="closePreviewModal()">&times;</span>
-        </div>
-        <div class="modal-body">
-            <!-- Summary bar -->
-            <div class="preview-summary-bar">
-                <div class="preview-summary-stat">
-                    <span class="preview-summary-label">Transactions</span>
-                    <span class="preview-summary-value" id="previewTxCount">0</span>
-                </div>
-                <div class="preview-summary-stat">
-                    <span class="preview-summary-label">Income</span>
-                    <span class="preview-summary-value income" id="previewIncome">$0.00</span>
-                </div>
-                <div class="preview-summary-stat">
-                    <span class="preview-summary-label">Expenses</span>
-                    <span class="preview-summary-value expense" id="previewExpenses">$0.00</span>
-                </div>
-                <div class="preview-summary-stat">
-                    <span class="preview-summary-label">Net</span>
-                    <span class="preview-summary-value" id="previewNet">$0.00</span>
-                </div>
-            </div>
-
-            <!-- Transactions tab -->
-            <div id="previewTransactionsTab" class="preview-tab-content">
-                <div class="preview-tx-controls">
-                    <label class="preview-select-all">
-                        <input type="checkbox" id="selectAllTx" checked onchange="toggleSelectAll(this.checked)">
-                        Select all
-                    </label>
-                    <span class="preview-tx-hint">Uncheck transactions to skip importing them</span>
-                </div>
-                <div class="preview-tx-table-wrap">
-                    <table class="preview-tx-table">
-                        <thead>
-                            <tr>
-                                <th style="width:36px;"></th>
-                                <th>Date</th>
-                                <th>Description</th>
-                                <th>Category</th>
-                                <th>Account</th>
-                                <th>Type</th>
-                                <th style="text-align:right;">Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody id="previewTxBody"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closePreviewModal()">Cancel</button>
-            <button class="btn btn-primary" onclick="importStatement()">
-                Import <span id="importCountLabel">0</span> transactions
-            </button>
         </div>
     </div>
 </div>

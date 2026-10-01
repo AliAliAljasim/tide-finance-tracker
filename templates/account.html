@@ -1,491 +1,246 @@
 {% extends "base.html" %}
 
-{% block title %}{{ account_type }} — Financial Manager{% endblock %}
+{% block title %}{{ account_type }} — Tide{% endblock %}
 
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/stocks.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/account.css') }}">
 {% endblock %}
 
-{% block header_actions %}
-<div class="header-page-actions">
-    <a href="/stocks" class="btn btn-secondary btn-sm" title="Back to Investments">
-        <i class="fas fa-arrow-left"></i>
-    </a>
-    <span class="account-badge account-{{ account_type.lower().replace(' ', '').replace('-', '') }}">{{ account_type }}</span>
-    {% if account_type == 'TFSA' %}
-    <button class="btn btn-success btn-sm" onclick="showDepositModal()">
-        <i class="fas fa-plus-circle"></i> Deposit
-    </button>
-    <button class="btn btn-info btn-sm" onclick="showTradeModal()">
-        <i class="fas fa-exchange-alt"></i> Trade
-    </button>
-    {% endif %}
-    {% if account_type == 'FHSA' %}
-    <button class="btn btn-success btn-sm" onclick="showFHSADepositModal()">
-        <i class="fas fa-plus-circle"></i> Deposit
-    </button>
-    {% endif %}
-    <button class="btn btn-warning btn-sm" onclick="showAddHoldingModal()">
-        <i class="fas fa-plus"></i> Holding
-    </button>
-    <button class="btn btn-primary btn-sm" onclick="forceRefreshPrices()" title="Refresh Prices">
-        <i class="fas fa-sync-alt"></i>
-    </button>
-    <button class="btn btn-danger btn-sm" onclick="confirmDeleteAccount()" title="Close Account">
-        <i class="fas fa-trash"></i>
-    </button>
-</div>
-{% endblock %}
-
 {% block content %}
-<main class="main-content">
-    <!-- Contribution Info Banner -->
-    <div id="contribBanner" class="contrib-banner">
-        <!-- Populated by JS -->
-    </div>
-
-    <!-- Holdings Stats Strip -->
-    <div class="stats-strip" id="holdingsStatsStrip" style="display:none;">
-        <div class="strip-stat">
-            <span class="strip-label">Market Value</span>
-            <span class="strip-value" id="acctMarketValue">$0.00</span>
+<main class="page">
+    <div class="page-head">
+        <div>
+            <a href="/stocks" class="link">&larr; All investments</a>
+            <h1 class="page-title mt-12">{{ account_type }}</h1>
         </div>
-        <div class="strip-stat">
-            <span class="strip-label">Book Value</span>
-            <span class="strip-value" id="acctBookValue">$0.00</span>
-        </div>
-        <div class="strip-stat">
-            <span class="strip-label">Gain / Loss</span>
-            <span class="strip-value" id="acctGainLoss">$0.00</span>
-        </div>
-        <div class="strip-stat">
-            <span class="strip-label">Return</span>
-            <span class="strip-value" id="acctReturn">0.00%</span>
+        <div class="page-actions">
+            {% if account_type == 'TFSA' %}
+            <button type="button" onclick="showDepositModal()" class="btn btn-success">Add deposit</button>
+            <button type="button" onclick="showTradeModal()" class="btn btn-outline">Add trade</button>
+            {% endif %}
+            {% if account_type == 'FHSA' %}
+            <button type="button" onclick="showFHSADepositModal()" class="btn btn-success">Add deposit</button>
+            {% endif %}
+            <button type="button" onclick="showAddHoldingModal()" class="btn btn-primary">Add holding</button>
+            <button type="button" onclick="forceRefreshPrices()" class="btn btn-outline">Refresh prices</button>
+            <button type="button" onclick="confirmDeleteAccount()" class="btn btn-outline neg">Close account</button>
         </div>
     </div>
 
-    <!-- Holdings Table -->
-    <div class="card">
-        <div class="card-header">
-            <h2><i class="fas fa-briefcase"></i> Holdings</h2>
+    <section id="contribBanner" class="card contrib-card" aria-label="Contribution room"></section>
+
+    <section id="holdingsStatsStrip" class="card stats-strip" aria-label="Account totals">
+        <div><div class="label">Market value</div><div id="acctMarketValue" class="stat-value">$0.00</div></div>
+        <div><div class="label">Book value</div><div id="acctBookValue" class="stat-value">$0.00</div></div>
+        <div><div class="label">Gain / loss</div><div id="acctGainLoss" class="stat-value">$0.00</div></div>
+        <div><div class="label">Return</div><div id="acctReturn" class="stat-value">0.00%</div></div>
+    </section>
+
+    <section class="card section-card first" aria-label="Holdings">
+        <h2 class="card-title">Holdings</h2>
+        <div class="table-scroll">
+            <table class="table">
+                <thead><tr><th scope="col">Ticker</th><th scope="col">Name</th><th scope="col" class="num">Shares</th><th scope="col" class="num">Avg cost</th><th scope="col" class="num">Price</th><th scope="col" class="num">Market value</th><th scope="col" class="num">Book value</th><th scope="col" class="num">Gain / loss</th><th scope="col" class="num">Return</th><th scope="col" class="actions">Actions</th></tr></thead>
+                <tbody id="holdingsBody"><tr><td colspan="10" class="empty-cell">Loading...</td></tr></tbody>
+            </table>
         </div>
-        <div class="card-body">
-            <div class="table-container">
-                <table class="holdings-table">
-                    <thead>
-                        <tr>
-                            <th>Ticker</th>
-                            <th>Name</th>
-                            <th>Shares</th>
-                            <th>Avg Cost</th>
-                            <th>Price</th>
-                            <th>Market Value</th>
-                            <th>Book Value</th>
-                            <th>Gain / Loss</th>
-                            <th>Return %</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="holdingsBody">
-                        <tr><td colspan="10" class="empty-state">
-                            <i class="fas fa-spinner fa-spin"></i>
-                            <p>Loading...</p>
-                        </td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+    </section>
 
     {% if account_type == 'FHSA' %}
-    <!-- FHSA Deposits -->
-    <div class="card" style="margin-top:1rem;">
-        <div class="card-header">
-            <h2><i class="fas fa-hand-holding-usd"></i> FHSA Deposits</h2>
+    <section class="card section-card" aria-label="FHSA deposits">
+        <h2 class="card-title">FHSA deposits</h2>
+        <div class="table-scroll">
+            <table class="table">
+                <thead><tr><th scope="col">Date</th><th scope="col" class="num">Amount</th><th scope="col">Note</th><th scope="col" class="actions">Actions</th></tr></thead>
+                <tbody id="fhsaDepositsBody"></tbody>
+            </table>
         </div>
-        <div class="card-body">
-            <div class="table-container">
-                <table class="deposits-table">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Amount</th>
-                            <th>Note</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="fhsaDepositsBody"></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+    </section>
     {% endif %}
 
     {% if account_type == 'TFSA' %}
-    <!-- TFSA Deposits -->
-    <div class="card" style="margin-top:1rem;">
-        <div class="card-header">
-            <h2><i class="fas fa-hand-holding-usd"></i> TFSA Deposits</h2>
+    <section class="card section-card" aria-label="TFSA deposits">
+        <h2 class="card-title">TFSA deposits</h2>
+        <div class="table-scroll">
+            <table class="table">
+                <thead><tr><th scope="col">Date</th><th scope="col" class="num">Amount</th><th scope="col">Note</th><th scope="col" class="actions">Actions</th></tr></thead>
+                <tbody id="depositsBody"></tbody>
+            </table>
         </div>
-        <div class="card-body">
-            <div class="table-container">
-                <table class="deposits-table">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Amount</th>
-                            <th>Note</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="depositsBody"></tbody>
-                </table>
-            </div>
+    </section>
+    <section class="card section-card" aria-label="Recent trades">
+        <h2 class="card-title">Recent trades</h2>
+        <div class="table-scroll">
+            <table class="table">
+                <thead><tr><th scope="col">Date</th><th scope="col">Ticker</th><th scope="col" class="num">Shares</th><th scope="col" class="num">Cost / share</th><th scope="col" class="num">Fees</th><th scope="col" class="num">Total</th><th scope="col" class="actions">Actions</th></tr></thead>
+                <tbody id="tradesBody"></tbody>
+            </table>
         </div>
-    </div>
-
-    <!-- Recent Trades -->
-    <div class="card" style="margin-top:1rem;">
-        <div class="card-header">
-            <h2><i class="fas fa-exchange-alt"></i> Recent Trades</h2>
-        </div>
-        <div class="card-body">
-            <div class="table-container">
-                <table class="trades-table">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Ticker</th>
-                            <th>Shares</th>
-                            <th>Cost/Share</th>
-                            <th>Fees</th>
-                            <th>Total</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tradesBody"></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+    </section>
     {% endif %}
 </main>
 {% endblock %}
 
 {% block modals %}
-{% if account_type == 'FHSA' %}
-<!-- Add FHSA Deposit Modal -->
-<div id="fhsaDepositModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2><i class="fas fa-plus-circle"></i> Add FHSA Deposit</h2>
-            <span class="close" onclick="closeFHSADepositModal()">&times;</span>
+{% macro modal_shell(id, title, close_fn) %}
+<div id="{{ id }}" class="modal">
+    <div class="modal-box">
+        <div class="modal-head">
+            <h2 class="modal-title">{{ title }}</h2>
+            <button type="button" class="modal-close" onclick="{{ close_fn }}()" aria-label="Close">&times;</button>
         </div>
         <div class="modal-body">
-            <form id="fhsaDepositForm">
-                <div class="form-group">
-                    <label for="fhsaDepositDate">Date</label>
-                    <input type="date" id="fhsaDepositDate" required>
-                </div>
-                <div class="form-group">
-                    <label for="fhsaDepositAmount">Amount ($)</label>
-                    <input type="number" id="fhsaDepositAmount" step="0.01" required>
-                </div>
-                <div class="form-group">
-                    <label for="fhsaDepositNote">Note (optional)</label>
-                    <input type="text" id="fhsaDepositNote">
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeFHSADepositModal()">Cancel</button>
-                    <button type="submit" class="btn btn-success">Add Deposit</button>
-                </div>
-            </form>
+            {{ caller() }}
         </div>
     </div>
 </div>
+{% endmacro %}
 
-<!-- Edit FHSA Deposit Modal -->
-<div id="editFHSADepositModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2><i class="fas fa-edit"></i> Edit FHSA Deposit</h2>
-            <span class="close" onclick="closeEditFHSADepositModal()">&times;</span>
-        </div>
-        <div class="modal-body">
-            <form id="editFHSADepositForm">
-                <input type="hidden" id="editFHSADepositId">
-                <div class="form-group">
-                    <label for="editFHSADepositDate">Date</label>
-                    <input type="date" id="editFHSADepositDate" required>
-                </div>
-                <div class="form-group">
-                    <label for="editFHSADepositAmount">Amount ($)</label>
-                    <input type="number" id="editFHSADepositAmount" step="0.01" required>
-                </div>
-                <div class="form-group">
-                    <label for="editFHSADepositNote">Note (optional)</label>
-                    <input type="text" id="editFHSADepositNote">
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeEditFHSADepositModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
-                </div>
-            </form>
-        </div>
-    </div>
+{% macro field(label, fid) %}
+<div class="field">
+    <label class="field-label" for="{{ fid }}">{{ label }}</label>
+    {{ caller() }}
 </div>
+{% endmacro %}
+
+{% macro actions(close_fn, submit_label, submit_class='btn-primary') %}
+<div class="form-actions">
+    <button type="button" onclick="{{ close_fn }}()" class="btn btn-outline">Cancel</button>
+    <button type="submit" class="btn {{ submit_class }}">{{ submit_label }}</button>
+</div>
+{% endmacro %}
+
+{% if account_type == 'FHSA' %}
+{% call modal_shell('fhsaDepositModal', 'Add FHSA deposit', 'closeFHSADepositModal') %}
+<form id="fhsaDepositForm" class="modal-form">
+    {% call field('Date', 'fhsaDepositDate') %}<input type="date" id="fhsaDepositDate" required class="input mono">{% endcall %}
+    {% call field('Amount ($)', 'fhsaDepositAmount') %}<input type="number" id="fhsaDepositAmount" step="0.01" required class="input mono">{% endcall %}
+    {% call field('Note (optional)', 'fhsaDepositNote') %}<input type="text" id="fhsaDepositNote" class="input">{% endcall %}
+    {{ actions('closeFHSADepositModal', 'Add deposit', 'btn-success') }}
+</form>
+{% endcall %}
+
+{% call modal_shell('editFHSADepositModal', 'Edit FHSA deposit', 'closeEditFHSADepositModal') %}
+<form id="editFHSADepositForm" class="modal-form">
+    <input type="hidden" id="editFHSADepositId">
+    {% call field('Date', 'editFHSADepositDate') %}<input type="date" id="editFHSADepositDate" required class="input mono">{% endcall %}
+    {% call field('Amount ($)', 'editFHSADepositAmount') %}<input type="number" id="editFHSADepositAmount" step="0.01" required class="input mono">{% endcall %}
+    {% call field('Note (optional)', 'editFHSADepositNote') %}<input type="text" id="editFHSADepositNote" class="input">{% endcall %}
+    {{ actions('closeEditFHSADepositModal', 'Save changes') }}
+</form>
+{% endcall %}
 {% endif %}
 
 {% if account_type == 'TFSA' %}
-<!-- Add Deposit Modal -->
-<div id="depositModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2><i class="fas fa-plus-circle"></i> Add TFSA Deposit</h2>
-            <span class="close" onclick="closeDepositModal()">&times;</span>
-        </div>
-        <div class="modal-body">
-            <form id="depositForm">
-                <div class="form-group">
-                    <label for="depositDate">Date</label>
-                    <input type="date" id="depositDate" required>
-                </div>
-                <div class="form-group">
-                    <label for="depositAmount">Amount ($)</label>
-                    <input type="number" id="depositAmount" step="0.01" required>
-                </div>
-                <div class="form-group">
-                    <label for="depositNote">Note (optional)</label>
-                    <input type="text" id="depositNote">
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeDepositModal()">Cancel</button>
-                    <button type="submit" class="btn btn-success">Add Deposit</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+{% call modal_shell('depositModal', 'Add TFSA deposit', 'closeDepositModal') %}
+<form id="depositForm" class="modal-form">
+    {% call field('Date', 'depositDate') %}<input type="date" id="depositDate" required class="input mono">{% endcall %}
+    {% call field('Amount ($)', 'depositAmount') %}<input type="number" id="depositAmount" step="0.01" required class="input mono">{% endcall %}
+    {% call field('Note (optional)', 'depositNote') %}<input type="text" id="depositNote" class="input">{% endcall %}
+    {{ actions('closeDepositModal', 'Add deposit', 'btn-success') }}
+</form>
+{% endcall %}
 
-<!-- Edit Deposit Modal -->
-<div id="editDepositModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2><i class="fas fa-edit"></i> Edit Deposit</h2>
-            <span class="close" onclick="closeEditDepositModal()">&times;</span>
-        </div>
-        <div class="modal-body">
-            <form id="editDepositForm">
-                <input type="hidden" id="editDepositId">
-                <div class="form-group">
-                    <label for="editDepositDate">Date</label>
-                    <input type="date" id="editDepositDate" required>
-                </div>
-                <div class="form-group">
-                    <label for="editDepositAmount">Amount ($)</label>
-                    <input type="number" id="editDepositAmount" step="0.01" required>
-                </div>
-                <div class="form-group">
-                    <label for="editDepositNote">Note (optional)</label>
-                    <input type="text" id="editDepositNote">
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeEditDepositModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+{% call modal_shell('editDepositModal', 'Edit deposit', 'closeEditDepositModal') %}
+<form id="editDepositForm" class="modal-form">
+    <input type="hidden" id="editDepositId">
+    {% call field('Date', 'editDepositDate') %}<input type="date" id="editDepositDate" required class="input mono">{% endcall %}
+    {% call field('Amount ($)', 'editDepositAmount') %}<input type="number" id="editDepositAmount" step="0.01" required class="input mono">{% endcall %}
+    {% call field('Note (optional)', 'editDepositNote') %}<input type="text" id="editDepositNote" class="input">{% endcall %}
+    {{ actions('closeEditDepositModal', 'Save changes') }}
+</form>
+{% endcall %}
 
-<!-- Add Trade Modal -->
-<div id="tradeModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2><i class="fas fa-exchange-alt"></i> Add Trade</h2>
-            <span class="close" onclick="closeTradeModal()">&times;</span>
-        </div>
-        <div class="modal-body">
-            <form id="tradeForm">
-                <div class="form-group">
-                    <label for="tradeDate">Date</label>
-                    <input type="date" id="tradeDate" required>
-                </div>
-                <div class="form-group">
-                    <label>Account</label>
-                    <p class="form-static-value">
-                        <span class="account-badge account-tfsa">TFSA</span>
-                    </p>
-                </div>
-                <div class="form-group">
-                    <label for="tradeTicker">Ticker</label>
-                    <div class="ticker-autocomplete">
-                        <input type="text" id="tradeTicker" class="ticker-input" placeholder="Search ticker symbol or name..." autocomplete="off" required>
-                        <div id="tradeTickerDropdown" class="ticker-dropdown"></div>
-                    </div>
-                    <input type="hidden" id="tradeTickerSymbol">
-                </div>
-                <div class="form-group">
-                    <label for="tradeShares">Shares</label>
-                    <input type="number" id="tradeShares" step="0.0001" required>
-                </div>
-                <div class="form-group">
-                    <label for="tradeCost">Cost per Share ($)</label>
-                    <input type="number" id="tradeCost" step="0.01" required>
-                </div>
-                <div class="form-group">
-                    <label for="tradeFees">Fees ($)</label>
-                    <input type="number" id="tradeFees" step="0.01" value="0">
-                </div>
-                <div class="form-group">
-                    <label>Total Cost</label>
-                    <p class="calculated-value" id="totalCost">$0.00</p>
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeTradeModal()">Cancel</button>
-                    <button type="submit" class="btn btn-info">Add Trade</button>
-                </div>
-            </form>
-        </div>
+{% call modal_shell('tradeModal', 'Add trade', 'closeTradeModal') %}
+<form id="tradeForm" class="modal-form">
+    {% call field('Date', 'tradeDate') %}<input type="date" id="tradeDate" required class="input mono">{% endcall %}
+    <div class="field"><span class="field-label">Account</span><span class="account-tag">TFSA</span></div>
+    {% call field('Ticker', 'tradeTicker') %}
+    <div class="ticker-autocomplete">
+        <input type="text" id="tradeTicker" class="input ticker-input" placeholder="Search ticker symbol or name..." autocomplete="off" required>
+        <div id="tradeTickerDropdown" class="ticker-dropdown"></div>
     </div>
-</div>
+    <input type="hidden" id="tradeTickerSymbol">
+    {% endcall %}
+    <div class="form-grid">
+        {% call field('Shares', 'tradeShares') %}<input type="number" id="tradeShares" step="0.0001" required class="input mono">{% endcall %}
+        {% call field('Cost / share ($)', 'tradeCost') %}<input type="number" id="tradeCost" step="0.01" required class="input mono">{% endcall %}
+    </div>
+    {% call field('Fees ($)', 'tradeFees') %}<input type="number" id="tradeFees" step="0.01" value="0" class="input mono">{% endcall %}
+    <div class="total-card">
+        <div class="label">Total cost</div>
+        <div id="totalCost" class="total-value">$0.00</div>
+    </div>
+    {{ actions('closeTradeModal', 'Add trade') }}
+</form>
+{% endcall %}
 
-<!-- Edit Trade Modal -->
-<div id="editTradeModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2><i class="fas fa-edit"></i> Edit Trade</h2>
-            <span class="close" onclick="closeEditTradeModal()">&times;</span>
-        </div>
-        <div class="modal-body">
-            <form id="editTradeForm">
-                <input type="hidden" id="editTradeId">
-                <div class="form-group">
-                    <label for="editTradeDate">Date</label>
-                    <input type="date" id="editTradeDate" required>
-                </div>
-                <div class="form-group">
-                    <label for="editTradeTicker">Ticker</label>
-                    <input type="text" id="editTradeTicker" required>
-                </div>
-                <div class="form-group">
-                    <label for="editTradeShares">Shares</label>
-                    <input type="number" id="editTradeShares" step="0.0001" required>
-                </div>
-                <div class="form-group">
-                    <label for="editTradeCost">Cost per Share ($)</label>
-                    <input type="number" id="editTradeCost" step="0.01" required>
-                </div>
-                <div class="form-group">
-                    <label for="editTradeFees">Fees ($)</label>
-                    <input type="number" id="editTradeFees" step="0.01" value="0">
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeEditTradeModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
-                </div>
-            </form>
-        </div>
+{% call modal_shell('editTradeModal', 'Edit trade', 'closeEditTradeModal') %}
+<form id="editTradeForm" class="modal-form">
+    <input type="hidden" id="editTradeId">
+    {% call field('Date', 'editTradeDate') %}<input type="date" id="editTradeDate" required class="input mono">{% endcall %}
+    {% call field('Ticker', 'editTradeTicker') %}<input type="text" id="editTradeTicker" required class="input mono">{% endcall %}
+    <div class="form-grid">
+        {% call field('Shares', 'editTradeShares') %}<input type="number" id="editTradeShares" step="0.0001" required class="input mono">{% endcall %}
+        {% call field('Cost / share ($)', 'editTradeCost') %}<input type="number" id="editTradeCost" step="0.01" required class="input mono">{% endcall %}
     </div>
-</div>
+    {% call field('Fees ($)', 'editTradeFees') %}<input type="number" id="editTradeFees" step="0.01" value="0" class="input mono">{% endcall %}
+    {{ actions('closeEditTradeModal', 'Save changes') }}
+</form>
+{% endcall %}
 {% endif %}
 
-<!-- Add Holding Modal -->
-<div id="addHoldingModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2><i class="fas fa-plus"></i> Add Holding</h2>
-            <span class="close" onclick="closeAddHoldingModal()">&times;</span>
-        </div>
-        <div class="modal-body">
-            <form id="addHoldingForm">
-                <div class="form-group">
-                    <label>Account</label>
-                    <p class="form-static-value">
-                        <span class="account-badge account-{{ account_type.lower().replace(' ', '').replace('-', '') }}">{{ account_type }}</span>
-                    </p>
-                </div>
-                <div class="form-group">
-                    <label for="holdingTicker">Ticker</label>
-                    <div class="ticker-autocomplete">
-                        <input type="text" id="holdingTicker" class="ticker-input" placeholder="Search ticker symbol or name..." autocomplete="off" required>
-                        <div id="holdingTickerDropdown" class="ticker-dropdown"></div>
-                    </div>
-                    <input type="hidden" id="holdingTickerSymbol">
-                </div>
-                <div class="form-group">
-                    <label for="holdingName">Company Name</label>
-                    <input type="text" id="holdingName" placeholder="e.g., Apple Inc." readonly>
-                </div>
-                <div class="form-group">
-                    <label for="holdingShares">Total Shares</label>
-                    <input type="number" id="holdingShares" step="0.0001" required>
-                </div>
-                <div class="form-group">
-                    <label for="holdingAvgCost">Average Cost ($)</label>
-                    <input type="number" id="holdingAvgCost" step="0.01" required>
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeAddHoldingModal()">Cancel</button>
-                    <button type="submit" class="btn btn-warning">Add Holding</button>
-                </div>
-            </form>
-        </div>
+{% call modal_shell('addHoldingModal', 'Add holding', 'closeAddHoldingModal') %}
+<form id="addHoldingForm" class="modal-form">
+    <div class="field"><span class="field-label">Account</span><span class="account-tag">{{ account_type }}</span></div>
+    {% call field('Ticker', 'holdingTicker') %}
+    <div class="ticker-autocomplete">
+        <input type="text" id="holdingTicker" class="input ticker-input" placeholder="Search ticker symbol or name..." autocomplete="off" required>
+        <div id="holdingTickerDropdown" class="ticker-dropdown"></div>
     </div>
-</div>
+    <input type="hidden" id="holdingTickerSymbol">
+    {% endcall %}
+    {% call field('Company name', 'holdingName') %}<input type="text" id="holdingName" placeholder="e.g., Apple Inc." readonly class="input">{% endcall %}
+    <div class="form-grid">
+        {% call field('Total shares', 'holdingShares') %}<input type="number" id="holdingShares" step="0.0001" required class="input mono">{% endcall %}
+        {% call field('Average cost ($)', 'holdingAvgCost') %}<input type="number" id="holdingAvgCost" step="0.01" required class="input mono">{% endcall %}
+    </div>
+    {{ actions('closeAddHoldingModal', 'Add holding') }}
+</form>
+{% endcall %}
 
-<!-- Edit Holding Modal -->
-<div id="editHoldingModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2><i class="fas fa-edit"></i> Edit Holding</h2>
-            <span class="close" onclick="closeEditHoldingModal()">&times;</span>
-        </div>
-        <div class="modal-body">
-            <form id="editHoldingForm">
-                <input type="hidden" id="editHoldingId">
-                <div class="form-group">
-                    <label for="editHoldingTickerInput">Ticker</label>
-                    <div class="ticker-autocomplete">
-                        <input type="text" id="editHoldingTickerInput" class="ticker-input" placeholder="Search ticker symbol or name..." autocomplete="off" required>
-                        <div id="editHoldingTickerDropdown" class="ticker-dropdown"></div>
-                    </div>
-                    <input type="hidden" id="editHoldingTicker">
-                </div>
-                <div class="form-group">
-                    <label for="editHoldingName">Company Name</label>
-                    <input type="text" id="editHoldingName" readonly>
-                </div>
-                <div class="form-group">
-                    <label for="editHoldingShares">Total Shares</label>
-                    <input type="number" id="editHoldingShares" step="0.0001" required>
-                </div>
-                <div class="form-group">
-                    <label for="editHoldingAvgCost">Average Cost ($)</label>
-                    <input type="number" id="editHoldingAvgCost" step="0.01" required>
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeEditHoldingModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
-                </div>
-            </form>
-        </div>
+{% call modal_shell('editHoldingModal', 'Edit holding', 'closeEditHoldingModal') %}
+<form id="editHoldingForm" class="modal-form">
+    <input type="hidden" id="editHoldingId">
+    {% call field('Ticker', 'editHoldingTickerInput') %}
+    <div class="ticker-autocomplete">
+        <input type="text" id="editHoldingTickerInput" class="input ticker-input" placeholder="Search ticker symbol or name..." autocomplete="off" required>
+        <div id="editHoldingTickerDropdown" class="ticker-dropdown"></div>
     </div>
-</div>
+    <input type="hidden" id="editHoldingTicker">
+    {% endcall %}
+    {% call field('Company name', 'editHoldingName') %}<input type="text" id="editHoldingName" readonly class="input">{% endcall %}
+    <div class="form-grid">
+        {% call field('Total shares', 'editHoldingShares') %}<input type="number" id="editHoldingShares" step="0.0001" required class="input mono">{% endcall %}
+        {% call field('Average cost ($)', 'editHoldingAvgCost') %}<input type="number" id="editHoldingAvgCost" step="0.01" required class="input mono">{% endcall %}
+    </div>
+    {{ actions('closeEditHoldingModal', 'Save changes') }}
+</form>
+{% endcall %}
 
 <!-- Delete Confirmation Modal -->
 <div id="deleteConfirmModal" class="modal">
-    <div class="modal-content modal-small">
-        <div class="modal-header">
-            <h2><i class="fas fa-exclamation-triangle"></i> Confirm Delete</h2>
-            <span class="close" onclick="closeDeleteModal()">&times;</span>
+    <div class="modal-box narrow">
+        <div class="modal-head">
+            <h2 class="modal-title">Confirm delete</h2>
+            <button type="button" class="modal-close" onclick="closeDeleteModal()" aria-label="Close">&times;</button>
         </div>
         <div class="modal-body">
             <p id="deleteConfirmMessage">Are you sure?</p>
             <div class="form-actions">
-                <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
-                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+                <button type="button" onclick="closeDeleteModal()" class="btn btn-outline">Cancel</button>
+                <button type="button" id="confirmDeleteBtn" class="btn btn-danger">Delete</button>
             </div>
         </div>
     </div>

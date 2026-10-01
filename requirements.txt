@@ -1,5 +1,3 @@
 Flask==3.0.3
-anthropic
-pdfplumber
 werkzeug
 yfinance

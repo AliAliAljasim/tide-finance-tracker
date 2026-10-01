@@ -9,19 +9,6 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('monthSelector').value = monthKey;
     currentMonth = monthKey;
     loadMonthData();
-
-    // Drag-and-drop for upload zone
-    const zone = document.getElementById('uploadDropZone');
-    if (zone) {
-        zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
-        zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
-        zone.addEventListener('drop', e => {
-            e.preventDefault();
-            zone.classList.remove('dragover');
-            const file = e.dataTransfer.files[0];
-            if (file) setUploadFile(file);
-        });
-    }
 });
 
 // Load transactions and summary for the current month
@@ -44,7 +31,10 @@ async function loadMonthData() {
         document.getElementById('monthExpenses').textContent = fmt(expenses);
         const netEl = document.getElementById('monthNet');
         netEl.textContent = (net >= 0 ? '+' : '-') + fmt(net);
-        netEl.className = 'diary-nav-stat ' + (net >= 0 ? 'income' : 'expense');
+        netEl.classList.toggle('pos', net >= 0);
+        netEl.classList.toggle('neg', net < 0);
+
+        updateHeroSentence(income, net);
 
         // Render transaction table
         renderTransactions(txs);
@@ -53,19 +43,33 @@ async function loadMonthData() {
     }
 }
 
+// Update the hero sentence with this month's kept-income rate
+function updateHeroSentence(income, net) {
+    const el = document.getElementById('diaryHeroSentence');
+    if (!el) return;
+
+    if (!income) {
+        el.textContent = 'No income logged for this month yet.';
+        return;
+    }
+
+    const keptPct = (net / income) * 100;
+    el.innerHTML = `You kept <em>${keptPct.toFixed(1)}%</em> of what came in this month.`;
+}
+
 function renderTransactions(txs) {
     const empty = document.getElementById('diaryTxEmpty');
     const table = document.getElementById('diaryTxTable');
     const tbody = document.getElementById('diaryTxBody');
 
     if (!txs.length) {
-        empty.style.display = '';
-        table.style.display = 'none';
+        empty.classList.remove('hidden');
+        table.classList.add('hidden');
         return;
     }
 
-    empty.style.display = 'none';
-    table.style.display = '';
+    empty.classList.add('hidden');
+    table.classList.remove('hidden');
     tbody.innerHTML = '';
 
     txs.forEach(tx => {
@@ -73,11 +77,11 @@ function renderTransactions(txs) {
         const dateStr = new Date(tx.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td class="diary-tx-date">${dateStr}</td>
-            <td class="diary-tx-name">${tx.name}</td>
-            <td class="diary-tx-cat">${tx.category || '—'}</td>
-            <td class="diary-tx-acct">${tx.account || '—'}</td>
-            <td class="diary-tx-amount ${isIncome ? 'income' : 'expense'}">${isIncome ? '+' : '-'}$${tx.amount.toFixed(2)}</td>
+            <td class="tx-date">${dateStr}</td>
+            <td class="tx-name">${tx.name}</td>
+            <td class="tx-meta">${tx.category || '—'}</td>
+            <td class="tx-meta">${tx.account || '—'}</td>
+            <td class="tx-amount ${isIncome ? 'pos' : 'neg'}">${isIncome ? '+' : '-'}$${tx.amount.toFixed(2)}</td>
         `;
         tbody.appendChild(row);
     });
@@ -131,7 +135,7 @@ async function showDiaryList() {
                 listContent.appendChild(item);
             });
         } else {
-            listContent.innerHTML = '<p style="text-align: center; color: var(--text-light);">No diary entries yet.</p>';
+            listContent.innerHTML = '<p class="diary-list-empty">No diary entries yet.</p>';
         }
 
         document.getElementById('diaryListModal').classList.add('show');
@@ -169,32 +173,16 @@ function showLoading(show) {
 // Show notification
 function showNotification(message, type) {
     const notification = document.createElement('div');
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 1rem 2rem;
-        background: ${type === 'success' ? '#2ecc71' : '#e74c3c'};
-        color: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        z-index: 3000;
-        animation: slideIn 0.3s ease;
-    `;
+    notification.className = 'toast ' + (type === 'success' ? 'success' : 'error');
     notification.textContent = message;
     document.body.appendChild(notification);
-    setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s ease';
-        setTimeout(() => document.body.removeChild(notification), 300);
-    }, 3000);
+    setTimeout(() => notification.remove(), 3000);
 }
 
 // Close modal when clicking outside
 window.onclick = function(event) {
     if (event.target === document.getElementById('addTxModal')) closeAddModal();
     if (event.target === document.getElementById('diaryListModal')) closeDiaryList();
-    if (event.target === document.getElementById('uploadModal')) closeUploadModal();
-    if (event.target === document.getElementById('previewModal')) closePreviewModal();
 }
 
 // ===== Add Transaction =====
@@ -208,7 +196,7 @@ async function openAddModal() {
     document.getElementById('atAccount').value = '';
     document.getElementById('atAmount').value = '';
     document.getElementById('atType').value = 'Expense';
-    document.getElementById('addTxError').style.display = 'none';
+    document.getElementById('addTxError').classList.add('hidden');
 
     // Populate datalists
     try {
@@ -236,7 +224,7 @@ async function submitAddTransaction() {
 
     if (!date || !name || isNaN(amount) || amount <= 0) {
         errEl.textContent = 'Please fill in date, description, and a valid amount.';
-        errEl.style.display = '';
+        errEl.classList.remove('hidden');
         return;
     }
 
@@ -266,200 +254,10 @@ async function submitAddTransaction() {
             showNotification('Transaction added.', 'success');
         } else {
             errEl.textContent = result.error || 'Failed to add transaction.';
-            errEl.style.display = '';
+            errEl.classList.remove('hidden');
         }
     } catch (e) {
         errEl.textContent = 'Network error. Please try again.';
-        errEl.style.display = '';
+        errEl.classList.remove('hidden');
     }
 }
-
-// ===== Statement Upload & Import =====
-
-let parsedStatementData = null;
-let selectedFile = null;
-
-function openUploadModal() {
-    selectedFile = null;
-    document.getElementById('statementFile').value = '';
-    document.getElementById('uploadFileName').style.display = 'none';
-    document.getElementById('uploadError').style.display = 'none';
-    document.getElementById('uploadBtn').disabled = true;
-    document.getElementById('uploadModal').classList.add('show');
-}
-
-function closeUploadModal() {
-    document.getElementById('uploadModal').classList.remove('show');
-}
-
-function closePreviewModal() {
-    document.getElementById('previewModal').classList.remove('show');
-}
-
-function handleFileSelect(event) {
-    const file = event.target.files[0];
-    setUploadFile(file);
-}
-
-function setUploadFile(file) {
-    if (!file) return;
-    const name = file.name.toLowerCase();
-    const errEl = document.getElementById('uploadError');
-    if (!name.endsWith('.pdf') && !name.endsWith('.csv')) {
-        errEl.textContent = 'Unsupported format. Please upload a PDF or CSV file.';
-        errEl.style.display = '';
-        document.getElementById('uploadBtn').disabled = true;
-        return;
-    }
-    errEl.style.display = 'none';
-    selectedFile = file;
-    const nameEl = document.getElementById('uploadFileName');
-    nameEl.textContent = `Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
-    nameEl.style.display = '';
-    document.getElementById('uploadBtn').disabled = false;
-}
-
-async function parseStatement() {
-    if (!selectedFile) return;
-
-    const btn = document.getElementById('uploadBtn');
-    const errEl = document.getElementById('uploadError');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing…';
-    errEl.style.display = 'none';
-
-    try {
-        const formData = new FormData();
-        formData.append('file', selectedFile);
-
-        const resp = await fetch('/api/diary/parse-statement', { method: 'POST', body: formData });
-        const result = await resp.json();
-
-        if (!result.success) {
-            errEl.textContent = result.error || 'Failed to parse statement.';
-            errEl.style.display = '';
-            return;
-        }
-
-        parsedStatementData = result.data;
-        closeUploadModal();
-        showStatementPreview(result.data);
-    } catch (e) {
-        errEl.textContent = 'Network error. Please try again.';
-        errEl.style.display = '';
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-magic"></i> Analyze';
-    }
-}
-
-function showStatementPreview(data) {
-    const txs = data.transactions || [];
-    const monthKey = data.month_key || '';
-
-    const monthLabel = monthKey
-        ? new Date(monthKey + '-02').toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
-        : 'Unknown Month';
-    document.getElementById('previewMonthLabel').textContent = monthLabel;
-
-    let totalIncome = 0, totalExpenses = 0;
-    txs.forEach(tx => {
-        if (tx.type === 'Income') totalIncome += tx.amount;
-        else totalExpenses += tx.amount;
-    });
-    const net = totalIncome - totalExpenses;
-    document.getElementById('previewTxCount').textContent = txs.length;
-    document.getElementById('previewIncome').textContent = '$' + totalIncome.toFixed(2);
-    document.getElementById('previewExpenses').textContent = '$' + totalExpenses.toFixed(2);
-    const netEl = document.getElementById('previewNet');
-    netEl.textContent = (net >= 0 ? '+' : '') + '$' + Math.abs(net).toFixed(2);
-    netEl.className = 'preview-summary-value ' + (net >= 0 ? 'income' : 'expense');
-
-    const tbody = document.getElementById('previewTxBody');
-    tbody.innerHTML = '';
-    txs.forEach((tx, i) => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td><input type="checkbox" class="tx-select" data-index="${i}" checked onchange="updateImportCount()"></td>
-            <td>${tx.date}</td>
-            <td class="tx-desc">${tx.description}</td>
-            <td><input class="preview-inline-input" value="${tx.category}" data-index="${i}" data-field="category" onchange="updateTxField(this)"></td>
-            <td><input class="preview-inline-input" value="${tx.account}" data-index="${i}" data-field="account" onchange="updateTxField(this)"></td>
-            <td><span class="tx-type-badge tx-${tx.type.toLowerCase()}">${tx.type}</span></td>
-            <td style="text-align:right;" class="${tx.type === 'Income' ? 'income' : 'expense'}">$${parseFloat(tx.amount).toFixed(2)}</td>
-        `;
-        tbody.appendChild(row);
-    });
-
-    updateImportCount();
-    document.getElementById('previewModal').classList.add('show');
-}
-
-function toggleSelectAll(checked) {
-    document.querySelectorAll('.tx-select').forEach(cb => cb.checked = checked);
-    updateImportCount();
-}
-
-function updateImportCount() {
-    const selected = document.querySelectorAll('.tx-select:checked').length;
-    document.getElementById('importCountLabel').textContent = selected;
-    const total = document.querySelectorAll('.tx-select').length;
-    document.getElementById('selectAllTx').checked = selected === total;
-    document.getElementById('selectAllTx').indeterminate = selected > 0 && selected < total;
-}
-
-function updateTxField(input) {
-    const idx = parseInt(input.dataset.index);
-    const field = input.dataset.field;
-    if (parsedStatementData && parsedStatementData.transactions[idx]) {
-        parsedStatementData.transactions[idx][field] = input.value;
-    }
-}
-
-async function importStatement() {
-    if (!parsedStatementData) return;
-
-    const selectedIndexes = new Set(
-        [...document.querySelectorAll('.tx-select:checked')].map(cb => parseInt(cb.dataset.index))
-    );
-
-    const transactions = parsedStatementData.transactions.map((tx, i) => ({
-        ...tx,
-        selected: selectedIndexes.has(i)
-    }));
-
-    try {
-        const resp = await fetch('/api/diary/import-statement', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ month_key: parsedStatementData.month_key, transactions, diary: {} })
-        });
-        const result = await resp.json();
-
-        if (result.success) {
-            closePreviewModal();
-            document.getElementById('monthSelector').value = result.month_key;
-            currentMonth = result.month_key;
-            await loadMonthData();
-            showNotification(`Imported ${result.imported} transactions.`, 'success');
-        } else {
-            showNotification(result.error || 'Import failed. Please try again.', 'error');
-        }
-    } catch (e) {
-        showNotification('Network error during import.', 'error');
-    }
-}
-
-// Slide animations
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-    }
-    @keyframes slideOut {
-        from { transform: translateX(0); opacity: 1; }
-        to { transform: translateX(100%); opacity: 0; }
-    }
-`;
-document.head.appendChild(style);

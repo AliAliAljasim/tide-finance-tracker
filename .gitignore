@@ -9,3 +9,4 @@ flask_session/
 instance/
 .claude/
 .venv/
+CLAUDE.md

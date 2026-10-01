@@ -1,0 +1,34 @@
+.settings-wrap { max-width: 1000px; }
+.settings-section { display: flex; gap: 48px; margin-bottom: 24px; padding: 28px; }
+.settings-aside { width: 260px; flex-shrink: 0; }
+.settings-aside h2 { font: 600 22px var(--font-display); margin-bottom: 6px; }
+.settings-aside p { font-size: 14px; line-height: 1.5; color: var(--muted); margin-bottom: 16px; }
+.settings-aside .edit-actions { display: flex; gap: 8px; }
+.settings-fields { flex-grow: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-content: start; }
+.settings-fields .full { grid-column: 1 / -1; }
+.field-label-text { display: block; font-weight: 500; font-size: 13px; margin-bottom: 6px; }
+.input:disabled, .select:disabled { background: var(--ground); color: var(--muted); border-color: var(--line); cursor: default; }
+.input-affix { position: relative; }
+.input-affix .affix { position: absolute; top: 50%; transform: translateY(-50%); color: var(--muted); font: 400 14px var(--font-mono); }
+.input-affix .affix.pre { left: 14px; }
+.input-affix .affix.post { right: 14px; }
+.input-affix .input { font-family: var(--font-mono); font-size: 14px; }
+.input-affix.pre .input { padding-left: 28px; }
+.input-affix.post .input { padding-right: 30px; }
+.mono-input { font-family: var(--font-mono); font-size: 14px; }
+.calc-box { display: flex; align-items: center; justify-content: space-between; background: var(--ground); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 16px; }
+.calc-box .calc-note { font-size: 13px; color: var(--muted); }
+.calc-box .calc-value { font: 600 22px var(--font-display); color: var(--accent); }
+.check-group { display: flex; flex-wrap: wrap; gap: 8px; }
+.checkbox-label { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid var(--border-input); border-radius: 999px; font-size: 14px; background: var(--surface); cursor: pointer; }
+.checkbox-label input { accent-color: var(--accent); width: 16px; height: 16px; }
+.checkbox-disabled { opacity: .55; pointer-events: none; }
+
+.toast { opacity: 0; transform: translateY(12px); transition: opacity .2s, transform .2s; pointer-events: none; }
+.toast.show { opacity: 1; transform: none; }
+
+@media (max-width: 900px) {
+  .settings-section { flex-direction: column; gap: 20px; }
+  .settings-aside { width: auto; }
+  .settings-fields { grid-template-columns: 1fr; }
+}

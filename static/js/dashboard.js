@@ -1,3 +1,10 @@
+// Chart theme (matches app.css tokens)
+if (typeof Chart !== 'undefined') {
+    Chart.defaults.font.family = "'DM Sans', system-ui, sans-serif";
+    Chart.defaults.color = '#666A72';
+    Chart.defaults.borderColor = '#E6E1D6';
+}
+
 // Global variables for charts
 let accountChart = null;
 let networthChart = null;
@@ -46,6 +53,7 @@ async function loadDashboardData() {
         // Update account list and chart
         updateAccountsList(data.accounts);
         updateAccountChart(data.accounts);
+        updateHeroSentence(data.dashboard, data.settings);
 
         updateTimestamp();
     } catch (error) {
@@ -116,7 +124,7 @@ async function loadRecentTransactions() {
         tbody.innerHTML = '';
 
         if (data.transactions.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem; color: #6b7280;">No transactions found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align: center; padding: 2rem;">No transactions found</td></tr>';
             return;
         }
 
@@ -158,34 +166,49 @@ async function loadNetworthHistory() {
     }
 }
 
-// Render accounts as a list
+// Render the total-balance hero card (value + per-account breakdown)
 function updateAccountsList(accounts) {
     const accountData = [
-        { label: 'Chequing', value: accounts.chequing || 0, color: 'rgba(37, 99, 235, 1)' },
-        { label: 'Cash',     value: accounts.cash     || 0, color: 'rgba(16, 185, 129, 1)' },
-        { label: 'TFSA',     value: accounts.tfsa     || 0, color: 'rgba(139, 92, 246, 1)' }
+        { label: 'Chequing', value: accounts.chequing || 0 },
+        { label: 'Cash',     value: accounts.cash     || 0 },
+        { label: 'TFSA',     value: accounts.tfsa     || 0 }
     ];
 
     const total = accountData.reduce((sum, a) => sum + a.value, 0);
 
-    const listEl = document.getElementById('accountListItems');
-    const totalEl = document.getElementById('accountListTotal');
-    if (!listEl || !totalEl) return;
+    const valueEl = document.getElementById('acctHeroValue');
+    const breakdownEl = document.getElementById('acctHeroBreakdown');
+    if (!valueEl || !breakdownEl) return;
 
-    listEl.innerHTML = accountData.map(a => `
-        <div class="acct-row">
-            <span class="acct-dot" style="background:${a.color}"></span>
-            <span class="acct-name">${a.label}</span>
-            <span class="acct-balance">${formatCurrency(a.value)}</span>
+    valueEl.textContent = formatCurrency(total);
+
+    breakdownEl.innerHTML = accountData.map(a => `
+        <div>
+            <div class="acct-break-label">${a.label}</div>
+            <div class="acct-break-value">${formatCurrency(a.value)}</div>
         </div>
     `).join('');
+}
 
-    totalEl.innerHTML = `
-        <div class="acct-row acct-row-total">
-            <span class="acct-name">Total</span>
-            <span class="acct-balance acct-balance-total">${formatCurrency(total)}</span>
-        </div>
-    `;
+// Update the hero sentence comparing this month's net savings to the target pace
+function updateHeroSentence(dashboard, settings) {
+    const el = document.getElementById('heroSentence');
+    if (!el || !dashboard || !settings) return;
+
+    if (!dashboard.monthlyIncome || !dashboard.totalIncome) {
+        el.textContent = "Log this month's income and expenses to see your savings pace.";
+        return;
+    }
+
+    const target = dashboard.monthlyIncome * (settings.savingsTargetPercent / 100);
+    const diff = dashboard.netMonth - target;
+    const amount = formatCurrency(Math.abs(diff));
+
+    if (diff >= 0) {
+        el.innerHTML = `You are <em>${amount}</em> ahead of your savings pace this month.`;
+    } else {
+        el.innerHTML = `You are <em>${amount}</em> behind your savings pace this month.`;
+    }
 }
 
 // Update account distribution chart
@@ -205,9 +228,9 @@ function updateAccountChart(accounts) {
 
     // Build arrays with only non-zero accounts
     const accountData = [
-        { label: 'Chequing', value: accounts.chequing || 0, color: 'rgba(37, 99, 235, 0.8)', borderColor: 'rgba(37, 99, 235, 1)' },
-        { label: 'Cash', value: accounts.cash || 0, color: 'rgba(16, 185, 129, 0.8)', borderColor: 'rgba(16, 185, 129, 1)' },
-        { label: 'TFSA', value: accounts.tfsa || 0, color: 'rgba(139, 92, 246, 0.8)', borderColor: 'rgba(139, 92, 246, 1)' }
+        { label: 'Chequing', value: accounts.chequing || 0, color: '#2F4BFF', borderColor: '#FFFFFF' },
+        { label: 'Cash', value: accounts.cash || 0, color: '#1F7A4D', borderColor: '#FFFFFF' },
+        { label: 'TFSA', value: accounts.tfsa || 0, color: '#16181D', borderColor: '#FFFFFF' }
     ];
 
     // Filter out accounts with zero balance
@@ -246,9 +269,10 @@ function updateAccountChart(accounts) {
                 legend: {
                     position: 'bottom',
                     labels: {
-                        padding: 10,
+                        padding: 14,
+                        color: '#666A72',
                         font: {
-                            size: 11
+                            size: 12
                         },
                         usePointStyle: true
                     }
@@ -291,8 +315,8 @@ function updateNetworthChart(history) {
                 {
                     label: 'Total Net Worth',
                     data: totals,
-                    borderColor: 'rgba(139, 92, 246, 1)',
-                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                    borderColor: '#2F4BFF',
+                    backgroundColor: 'rgba(47, 75, 255, 0.10)',
                     borderWidth: 3,
                     tension: 0.4,
                     fill: true
@@ -300,8 +324,8 @@ function updateNetworthChart(history) {
                 {
                     label: 'Chequing',
                     data: chequing,
-                    borderColor: 'rgba(37, 99, 235, 1)',
-                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                    borderColor: '#16181D',
+                    backgroundColor: 'rgba(22, 24, 29, 0.08)',
                     borderWidth: 2,
                     tension: 0.4,
                     fill: false
@@ -309,8 +333,8 @@ function updateNetworthChart(history) {
                 {
                     label: 'Cash',
                     data: cash,
-                    borderColor: 'rgba(16, 185, 129, 1)',
-                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    borderColor: '#1F7A4D',
+                    backgroundColor: 'rgba(31, 122, 77, 0.10)',
                     borderWidth: 2,
                     tension: 0.4,
                     fill: false
@@ -318,8 +342,8 @@ function updateNetworthChart(history) {
                 {
                     label: 'TFSA',
                     data: tfsa,
-                    borderColor: 'rgba(245, 158, 11, 1)',
-                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    borderColor: '#C2410C',
+                    backgroundColor: 'rgba(194, 65, 12, 0.10)',
                     borderWidth: 2,
                     tension: 0.4,
                     fill: false
@@ -338,6 +362,7 @@ function updateNetworthChart(history) {
                     position: 'bottom',
                     labels: {
                         padding: 15,
+                        color: '#666A72',
                         font: {
                             size: 12
                         }
@@ -516,7 +541,7 @@ async function obAddHolding() {
 
         // Show tag
         const tag = document.createElement('div');
-        tag.className = 'onboarding-holding-tag';
+        tag.className = 'ob-tag';
         tag.innerHTML = `<span><strong>${ticker}</strong> &nbsp;·&nbsp; ${accountType} &nbsp;·&nbsp; ${shares} shares @ $${avgCost.toFixed(2)}</span>`;
         document.getElementById('obHoldingsList').appendChild(tag);
 
@@ -584,15 +609,15 @@ function obRenderCategories(categories) {
     const container = document.getElementById('obCategoriesList');
     if (!container) return;
     if (!categories.length) {
-        container.innerHTML = '<span class="onboarding-step-hint">No categories found.</span>';
+        container.innerHTML = '<span class="ob-note">No categories found.</span>';
         return;
     }
     container.innerHTML = categories.map(cat => `
-        <div class="onboarding-form-group">
-            <label>${cat.name} ($/month)</label>
-            <input type="number" class="ob-cat-input" data-cat-id="${cat.id}"
+        <label class="field">
+            <span>${cat.name} ($/month)</span>
+            <input type="number" class="ob-cat-input input mono" data-cat-id="${cat.id}"
                    value="${cat.monthly_budget}" min="0" step="1">
-        </div>
+        </label>
     `).join('');
 }
 

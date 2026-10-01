@@ -324,22 +324,18 @@ function updateTotalBudget() {
 function showPassword(targetId) {
     const input = document.getElementById(targetId);
     const button = document.querySelector(`[data-target="${targetId}"]`);
-    const icon = button.querySelector('i');
 
     input.type = 'text';
-    icon.classList.remove('fa-eye');
-    icon.classList.add('fa-eye-slash');
+    button.classList.add('revealed');
 }
 
 // Hide password when released
 function hidePassword(targetId) {
     const input = document.getElementById(targetId);
     const button = document.querySelector(`[data-target="${targetId}"]`);
-    const icon = button.querySelector('i');
 
     input.type = 'password';
-    icon.classList.remove('fa-eye-slash');
-    icon.classList.add('fa-eye');
+    button.classList.remove('revealed');
 }
 
 // Progressive disclosure for Step 1 (name -> province)
@@ -452,26 +448,22 @@ function addHoldingRow() {
     row.className = 'holding-row';
     row.dataset.index = index;
     row.innerHTML = `
-        <div class="form-group">
-            <label>Ticker</label>
-            <div class="ticker-autocomplete-signup">
-                <input type="text" class="holding-ticker-input" data-index="${index}" placeholder="Search..." autocomplete="off">
-                <input type="hidden" class="holding-ticker-symbol" data-index="${index}">
-                <input type="hidden" class="holding-ticker-name" data-index="${index}">
-                <div class="ticker-dropdown-signup" id="tickerDropdown-${index}"></div>
-            </div>
+        <div class="hr-ticker">
+            <label class="su-sublabel">Ticker</label>
+            <input type="text" class="holding-ticker-input input" data-index="${index}" placeholder="Search..." autocomplete="off">
+            <input type="hidden" class="holding-ticker-symbol" data-index="${index}">
+            <input type="hidden" class="holding-ticker-name" data-index="${index}">
+            <div class="ticker-dropdown-signup" id="tickerDropdown-${index}"></div>
         </div>
-        <div class="form-group">
-            <label>Shares</label>
-            <input type="number" class="holding-shares" data-index="${index}" step="0.0001" min="0" placeholder="0">
+        <div class="hr-num">
+            <label class="su-sublabel">Shares</label>
+            <input type="number" class="holding-shares input" data-index="${index}" step="0.0001" min="0" placeholder="0">
         </div>
-        <div class="form-group">
-            <label>Avg Cost ($)</label>
-            <input type="number" class="holding-avg-cost" data-index="${index}" step="0.01" min="0" placeholder="0.00">
+        <div class="hr-num">
+            <label class="su-sublabel">Avg Cost ($)</label>
+            <input type="number" class="holding-avg-cost input" data-index="${index}" step="0.01" min="0" placeholder="0.00">
         </div>
-        <button type="button" class="btn-remove-holding" onclick="this.closest('.holding-row').remove()">
-            <i class="fas fa-times"></i>
-        </button>
+        <button type="button" class="hr-remove" aria-label="Remove holding" onclick="this.closest('.holding-row').remove()">&times;</button>
     `;
     container.appendChild(row);
     initHoldingTickerSearch(index);
@@ -518,7 +510,7 @@ function renderTickerDropdown(dropdown, tickers, input, hiddenSymbol, hiddenName
 
     dropdown.innerHTML = tickers.slice(0, 8).map(t => `
         <div class="ticker-item" data-symbol="${t.symbol}" data-name="${t.name}">
-            <span class="ticker-symbol">${t.symbol}</span>
+            <span class="ticker-sym">${t.symbol}</span>
             <span class="ticker-name">${t.name}</span>
         </div>
     `).join('');
@@ -561,7 +553,7 @@ function showQuestionnaire(hasTfsa, hasFhsa, tfsaBalance) {
 
     // Show holdings section if TFSA has contributions
     if (hasTfsa && tfsaBalance > 0) {
-        document.getElementById('qHoldings').style.display = '';
+        document.getElementById('qHoldings').style.display = 'block';
         addHoldingRow();
     }
 
@@ -573,7 +565,7 @@ function showQuestionnaire(hasTfsa, hasFhsa, tfsaBalance) {
         radio.addEventListener('change', function() {
             const dateGroup = document.getElementById('residencyDateGroup');
             if (this.value === 'no') {
-                dateGroup.style.display = '';
+                dateGroup.style.display = 'block';
                 document.getElementById('qResMonth').required = true;
                 document.getElementById('qResDay').required = true;
                 document.getElementById('qResYear').required = true;

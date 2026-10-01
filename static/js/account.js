@@ -1,6 +1,9 @@
 // account.js — account detail page logic
 // ACCOUNT_TYPE and ACCOUNT_SLUG are injected by the template
 
+const EDIT_SVG = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 2.5l2.5 2.5L5.5 13H3v-2.5z"/></svg>';
+const DEL_SVG = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h11M6 4.5V3h4v1.5M4 4.5l.6 8.5h6.8l.6-8.5"/></svg>';
+
 function fmtCur(v) {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v);
 }
@@ -18,137 +21,88 @@ function renderContribBanner(info) {
 
     let inner = '';
 
+    const INFO_SVG = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M8 7.2v4M8 4.9v.1"/></svg>';
+
+    const title = (text, tooltip) => `
+        <div class="contrib-title">
+            ${text}
+            ${tooltip ? `<span class="info-tooltip-wrapper">
+                <span class="info-icon">${INFO_SVG}</span>
+                <span class="info-tooltip">${tooltip}</span>
+            </span>` : ''}
+        </div>`;
+
+    const statRow = (stats) => `
+        <div class="stat-row">
+            ${stats.map(s => `
+                <div>
+                    <div class="label">${s.label}</div>
+                    <div class="stat-value ${s.cls || ''}">${s.value}</div>
+                </div>
+            `).join('')}
+        </div>`;
+
+    const progress = (info, pct) => `
+        <div class="contrib-progress">
+            <span class="mono">${fmtCur(info.contributed)}</span>
+            <div class="bar"><span style="width:${pct}%"></span></div>
+            <span class="mono end">${fmtCur(info.lifetimeLimit)}</span>
+            <span class="contrib-pct">${pct.toFixed(1)}%</span>
+        </div>`;
+
     if (info.type === 'TFSA' && info.hasTracking) {
         const pct = info.lifetimeLimit > 0
             ? Math.min((info.contributed / info.lifetimeLimit) * 100, 100)
             : 0;
-        inner = `
-            <div class="contrib-banner-header">
-                <div class="contrib-banner-title">
-                    ${info.description}
-                    <span class="info-tooltip-wrapper">
-                        <i class="fas fa-info-circle info-icon"></i>
-                        <span class="info-tooltip">${info.detail}</span>
-                    </span>
-                </div>
-            </div>
-            <div class="contrib-stats-row">
-                <div class="contrib-stat">
-                    <span class="contrib-stat-label">Contributions</span>
-                    <span class="contrib-stat-value">${fmtCur(info.contributed)}</span>
-                </div>
-            </div>
-            <div class="contrib-bar-row">
-                <span class="contrib-bar-label">${fmtCur(info.contributed)}</span>
-                <div class="contrib-bar-track">
-                    <div class="contrib-bar-fill" style="width: ${pct}%"></div>
-                </div>
-                <span class="contrib-bar-label">${fmtCur(info.lifetimeLimit)}</span>
-                <span class="contrib-bar-pct">${pct.toFixed(1)}%</span>
-            </div>`;
+        inner = title(info.description, info.detail) + progress(info, pct);
 
     } else if (info.type === 'FHSA' && info.needsOpenYear) {
         const currentYear = new Date().getFullYear();
         inner = `
-            <div class="contrib-banner-header">
-                <div class="contrib-banner-title">
-                    ${info.description}
-                    <span class="fhsa-setup-required-badge"><i class="fas fa-asterisk"></i> Setup required</span>
-                </div>
+            <div class="contrib-title">
+                ${info.description}
+                <span class="setup-badge">Setup required</span>
             </div>
-            <div class="fhsa-setup-prompt">
-                <p class="fhsa-setup-text">Enter the year you opened your FHSA to enable contribution tracking.</p>
-                <div class="fhsa-setup-form">
-                    <input type="number" id="fhsaOpenYearSetup" class="form-input" min="2023" max="${currentYear}" placeholder="e.g. 2023" style="width:110px;">
-                    <button class="btn btn-primary btn-sm" onclick="saveFHSAOpenYear()">Save</button>
+            <div class="setup-form">
+                <p class="muted">Enter the year you opened your FHSA to enable contribution tracking.</p>
+                <div class="setup-row">
+                    <input type="number" id="fhsaOpenYearSetup" class="input" min="2023" max="${currentYear}" placeholder="e.g. 2023" aria-label="FHSA open year">
+                    <button type="button" onclick="saveFHSAOpenYear()" class="btn btn-primary">Save</button>
                 </div>
-                <p id="fhsaSetupError" class="form-error" style="display:none;"></p>
+                <p id="fhsaSetupError" class="form-error" style="display:none"></p>
             </div>`;
 
     } else if (info.type === 'FHSA' && info.hasTracking) {
         const pct = info.lifetimeLimit > 0
             ? Math.min((info.contributed / info.lifetimeLimit) * 100, 100)
             : 0;
-        inner = `
-            <div class="contrib-banner-header">
-                <div class="contrib-banner-title">
-                    ${info.description}
-                    <span class="info-tooltip-wrapper">
-                        <i class="fas fa-info-circle info-icon"></i>
-                        <span class="info-tooltip">${info.detail}</span>
-                    </span>
-                </div>
-            </div>
-            <div class="contrib-stats-row">
-                <div class="contrib-stat">
-                    <span class="contrib-stat-label">Contributions</span>
-                    <span class="contrib-stat-value">${fmtCur(info.contributed)}</span>
-                </div>
-            </div>
-            <div class="contrib-bar-row">
-                <span class="contrib-bar-label">${fmtCur(info.contributed)}</span>
-                <div class="contrib-bar-track">
-                    <div class="contrib-bar-fill" style="width: ${pct}%"></div>
-                </div>
-                <span class="contrib-bar-label">${fmtCur(info.lifetimeLimit)}</span>
-                <span class="contrib-bar-pct">${pct.toFixed(1)}%</span>
-            </div>`;
+        inner = title(info.description, info.detail) + progress(info, pct);
 
     } else if (info.type === 'RRSP') {
         inner = `
-            <div class="contrib-banner-header">
-                <div>
-                    <div class="contrib-banner-title">${info.description}</div>
-                    <div class="contrib-banner-sub">${info.detail}</div>
-                </div>
-            </div>
-            <div class="contrib-stats-row">
-                <div class="contrib-stat">
-                    <span class="contrib-stat-label">${new Date().getFullYear()} Annual Max</span>
-                    <span class="contrib-stat-value">${fmtCur(info.annualMax)}</span>
-                </div>
-                <div class="contrib-stat">
-                    <span class="contrib-stat-label">Your Room</span>
-                    <span class="contrib-stat-value contrib-note">See CRA NOA</span>
-                </div>
-            </div>`;
+            <div class="contrib-title">${info.description}</div>
+            <div class="contrib-detail">${info.detail}</div>
+            ${statRow([
+                { label: `${new Date().getFullYear()} Annual Max`, value: fmtCur(info.annualMax) },
+                { label: 'Your Room', value: 'See CRA NOA', cls: 'muted' }
+            ])}`;
 
     } else if (info.type === 'RESP') {
         inner = `
-            <div class="contrib-banner-header">
-                <div>
-                    <div class="contrib-banner-title">${info.description}</div>
-                    <div class="contrib-banner-sub">${info.detail}</div>
-                </div>
-            </div>
-            <div class="contrib-stats-row">
-                <div class="contrib-stat">
-                    <span class="contrib-stat-label">Lifetime Limit</span>
-                    <span class="contrib-stat-value">${fmtCur(info.lifetimeLimit)}</span>
-                </div>
-                <div class="contrib-stat">
-                    <span class="contrib-stat-label">Optimal Annual (CESG)</span>
-                    <span class="contrib-stat-value">${fmtCur(info.annualCESGOptimal)}</span>
-                </div>
-                <div class="contrib-stat">
-                    <span class="contrib-stat-label">CESG Rate</span>
-                    <span class="contrib-stat-value">${info.cesgRate}%</span>
-                </div>
-                <div class="contrib-stat">
-                    <span class="contrib-stat-label">CESG Lifetime Max</span>
-                    <span class="contrib-stat-value">${fmtCur(info.cesgLifetimeMax)}</span>
-                </div>
-            </div>`;
+            <div class="contrib-title">${info.description}</div>
+            <div class="contrib-detail">${info.detail}</div>
+            ${statRow([
+                { label: 'Lifetime Limit', value: fmtCur(info.lifetimeLimit) },
+                { label: 'Optimal Annual (CESG)', value: fmtCur(info.annualCESGOptimal) },
+                { label: 'CESG Rate', value: info.cesgRate + '%' },
+                { label: 'CESG Lifetime Max', value: fmtCur(info.cesgLifetimeMax) }
+            ])}`;
 
     } else {
         // Non-Registered
         inner = `
-            <div class="contrib-banner-header">
-                <div>
-                    <div class="contrib-banner-title">${info.description}</div>
-                    <div class="contrib-banner-sub">${info.detail}</div>
-                </div>
-            </div>`;
+            <div class="contrib-title">${info.description}</div>
+            <div class="contrib-detail">${info.detail}</div>`;
     }
 
     banner.innerHTML = inner;
@@ -161,10 +115,7 @@ function renderHoldings(holdings) {
     const statsStrip = document.getElementById('holdingsStatsStrip');
 
     if (holdings.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="10" class="empty-state">
-            <i class="fas fa-briefcase"></i>
-            <p>No holdings in this account yet.</p>
-        </td></tr>`;
+        tbody.innerHTML = '<tr><td colspan="10" class="empty-cell">No holdings in this account yet.</td></tr>';
         statsStrip.style.display = 'none';
         return;
     }
@@ -179,39 +130,40 @@ function renderHoldings(holdings) {
 
     const glEl = document.getElementById('acctGainLoss');
     glEl.textContent = (totalGL >= 0 ? '+' : '') + fmtCur(totalGL);
-    glEl.style.color = totalGL >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
+    glEl.classList.toggle('pos', totalGL >= 0);
+    glEl.classList.toggle('neg', totalGL < 0);
 
     const retEl = document.getElementById('acctReturn');
     retEl.textContent = (totalReturn >= 0 ? '+' : '') + totalReturn.toFixed(2) + '%';
-    retEl.style.color = totalReturn >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
+    retEl.classList.toggle('pos', totalReturn >= 0);
+    retEl.classList.toggle('neg', totalReturn < 0);
 
     statsStrip.style.display = 'flex';
+
+    const iconBtn = (danger, onclick, svg, title) =>
+        `<button type="button" onclick="${onclick}" title="${title}" aria-label="${title}" class="icon-btn${danger ? ' danger' : ''}">${svg}</button>`;
 
     tbody.innerHTML = '';
     holdings.forEach(h => {
         const rPct = h.bookValue > 0 ? (h.gainLoss / h.bookValue) * 100 : 0;
-        const glCls = h.gainLoss >= 0 ? 'positive' : 'negative';
-        const rCls = rPct >= 0 ? 'positive' : 'negative';
+        const glCls = h.gainLoss >= 0 ? 'pos' : 'neg';
+        const rCls = rPct >= 0 ? 'pos' : 'neg';
         const safeName = (h.name || '').replace(/'/g, "\\'");
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td><span class="ticker-cell">${h.ticker}</span></td>
+            <td><span class="ticker-symbol">${h.ticker}</span></td>
             <td>${h.name || '-'}</td>
-            <td>${h.totalShares}</td>
-            <td>${fmtCur(h.avgCost)}</td>
-            <td>${fmtCur(h.price)}</td>
-            <td><strong>${fmtCur(h.marketValue)}</strong></td>
-            <td>${fmtCur(h.bookValue)}</td>
-            <td class="${glCls}">${fmtCur(h.gainLoss)}</td>
-            <td><span class="return-badge ${rCls}">${rPct >= 0 ? '+' : ''}${rPct.toFixed(2)}%</span></td>
-            <td class="actions-cell">
-                <button class="btn-icon btn-edit" onclick="openEditHolding('${h.id}', '${h.ticker}', '${safeName}', ${h.totalShares}, ${h.avgCost})" title="Edit">
-                    <i class="fas fa-pen"></i>
-                </button>
-                <button class="btn-icon btn-delete" onclick="openDeleteHolding('${h.id}', '${h.ticker}')" title="Delete">
-                    <i class="fas fa-trash"></i>
-                </button>
+            <td class="num">${h.totalShares}</td>
+            <td class="num">${fmtCur(h.avgCost)}</td>
+            <td class="num">${fmtCur(h.price)}</td>
+            <td class="num tx-strong">${fmtCur(h.marketValue)}</td>
+            <td class="num">${fmtCur(h.bookValue)}</td>
+            <td class="num ${glCls}">${fmtCur(h.gainLoss)}</td>
+            <td class="num"><span class="return-pill ${rCls}">${rPct >= 0 ? '+' : ''}${rPct.toFixed(2)}%</span></td>
+            <td class="actions">
+                ${iconBtn(false, `openEditHolding('${h.id}', '${h.ticker}', '${safeName}', ${h.totalShares}, ${h.avgCost})`, EDIT_SVG, 'Edit')}
+                ${iconBtn(true, `openDeleteHolding('${h.id}', '${h.ticker}')`, DEL_SVG, 'Delete')}
             </td>`;
         tbody.appendChild(tr);
     });
@@ -228,19 +180,19 @@ async function loadDeposits() {
         if (data.error) throw new Error(data.error);
         tbody.innerHTML = '';
         if (data.deposits.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><i class="fas fa-inbox"></i><p>No deposits yet</p></td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" class="empty-cell">No deposits yet</td></tr>';
             return;
         }
         data.deposits.forEach(d => {
             const safeNote = (d.note || '').replace(/'/g, "\\'");
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td>${d.date}</td>
-                <td><strong>${fmtCur(d.amount)}</strong></td>
-                <td>${d.note || '-'}</td>
-                <td class="actions-cell">
-                    <button class="btn-icon btn-edit" onclick="openEditDeposit(${d.row}, '${d.date}', ${d.amount}, '${safeNote}')" title="Edit"><i class="fas fa-pen"></i></button>
-                    <button class="btn-icon btn-delete" onclick="openDeleteItem('deposit', ${d.row}, '${fmtCur(d.amount)} deposit on ${d.date}')" title="Delete"><i class="fas fa-trash"></i></button>
+                <td class="tx-muted mono">${d.date}</td>
+                <td class="num tx-strong">${fmtCur(d.amount)}</td>
+                <td class="tx-muted">${d.note || '-'}</td>
+                <td class="actions">
+                    <button type="button" onclick="openEditDeposit(${d.row}, '${d.date}', ${d.amount}, '${safeNote}')" title="Edit" aria-label="Edit" class="icon-btn">${EDIT_SVG}</button>
+                    <button type="button" onclick="openDeleteItem('deposit', ${d.row}, '${fmtCur(d.amount)} deposit on ${d.date}')" title="Delete" aria-label="Delete" class="icon-btn danger">${DEL_SVG}</button>
                 </td>`;
             tbody.appendChild(tr);
         });
@@ -294,19 +246,19 @@ async function loadFHSADeposits() {
         if (data.error) throw new Error(data.error);
         tbody.innerHTML = '';
         if (data.deposits.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><i class="fas fa-inbox"></i><p>No deposits yet</p></td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" class="empty-cell">No deposits yet</td></tr>';
             return;
         }
         data.deposits.forEach(d => {
             const safeNote = (d.note || '').replace(/'/g, "\\'");
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td>${d.date}</td>
-                <td><strong>${fmtCur(d.amount)}</strong></td>
-                <td>${d.note || '-'}</td>
-                <td class="actions-cell">
-                    <button class="btn-icon btn-edit" onclick="openEditFHSADeposit(${d.row}, '${d.date}', ${d.amount}, '${safeNote}')" title="Edit"><i class="fas fa-pen"></i></button>
-                    <button class="btn-icon btn-delete" onclick="openDeleteItem('fhsa-deposit', ${d.row}, '${fmtCur(d.amount)} deposit on ${d.date}')" title="Delete"><i class="fas fa-trash"></i></button>
+                <td class="tx-muted mono">${d.date}</td>
+                <td class="num tx-strong">${fmtCur(d.amount)}</td>
+                <td class="tx-muted">${d.note || '-'}</td>
+                <td class="actions">
+                    <button type="button" onclick="openEditFHSADeposit(${d.row}, '${d.date}', ${d.amount}, '${safeNote}')" title="Edit" aria-label="Edit" class="icon-btn">${EDIT_SVG}</button>
+                    <button type="button" onclick="openDeleteItem('fhsa-deposit', ${d.row}, '${fmtCur(d.amount)} deposit on ${d.date}')" title="Delete" aria-label="Delete" class="icon-btn danger">${DEL_SVG}</button>
                 </td>`;
             tbody.appendChild(tr);
         });
@@ -352,21 +304,21 @@ async function loadTrades() {
         if (data.error) throw new Error(data.error);
         tbody.innerHTML = '';
         if (data.trades.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><i class="fas fa-exchange-alt"></i><p>No trades yet</p></td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="empty-cell">No trades yet</td></tr>';
             return;
         }
         data.trades.forEach(t => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td>${t.date}</td>
-                <td><span class="ticker-cell">${t.ticker}</span></td>
-                <td>${t.shares}</td>
-                <td>${fmtCur(t.costPerShare)}</td>
-                <td>${fmtCur(t.fees)}</td>
-                <td><strong>${fmtCur(t.totalCost)}</strong></td>
-                <td class="actions-cell">
-                    <button class="btn-icon btn-edit" onclick="openEditTrade(${t.row}, '${t.date}', '${t.ticker}', ${t.shares}, ${t.costPerShare}, ${t.fees})" title="Edit"><i class="fas fa-pen"></i></button>
-                    <button class="btn-icon btn-delete" onclick="openDeleteItem('trade', ${t.row}, '${t.ticker} trade on ${t.date}')" title="Delete"><i class="fas fa-trash"></i></button>
+                <td class="tx-muted mono">${t.date}</td>
+                <td><span class="ticker-symbol">${t.ticker}</span></td>
+                <td class="num">${t.shares}</td>
+                <td class="num">${fmtCur(t.costPerShare)}</td>
+                <td class="num">${fmtCur(t.fees)}</td>
+                <td class="num tx-strong">${fmtCur(t.totalCost)}</td>
+                <td class="actions">
+                    <button type="button" onclick="openEditTrade(${t.row}, '${t.date}', '${t.ticker}', ${t.shares}, ${t.costPerShare}, ${t.fees})" title="Edit" aria-label="Edit" class="icon-btn">${EDIT_SVG}</button>
+                    <button type="button" onclick="openDeleteItem('trade', ${t.row}, '${t.ticker} trade on ${t.date}')" title="Delete" aria-label="Delete" class="icon-btn danger">${DEL_SVG}</button>
                 </td>`;
             tbody.appendChild(tr);
         });

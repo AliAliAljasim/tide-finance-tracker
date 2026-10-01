@@ -33,10 +33,18 @@ let performanceChart = null;
 
 // Chart color palette
 const chartColors = [
-    '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#f43f5e',
-    '#06b6d4', '#a3e635', '#fb923c', '#e879f9', '#34d399',
-    '#60a5fa', '#fbbf24', '#c084fc', '#f87171', '#2dd4bf'
+    '#2F4BFF', '#0F766E', '#C2410C', '#7C3AED', '#B4432F',
+    '#0E7490', '#65A30D', '#D97706', '#DB2777', '#1F7A4D',
+    '#5B73FF', '#14B8A6', '#EA580C', '#A78BFA', '#E76F51'
 ];
+
+if (typeof Chart !== 'undefined') {
+    Chart.defaults.font.family = "'DM Sans', system-ui, sans-serif";
+    Chart.defaults.color = '#666A72';
+}
+
+const CHEVRON_SVG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>';
+const PLUS_SVG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>';
 
 // Load TFSA Summary & Stats
 async function loadTFSASummary() {
@@ -52,9 +60,10 @@ async function loadTFSASummary() {
         document.getElementById('marketValue').textContent = formatCurrency(data.marketValue);
         document.getElementById('gainLoss').textContent = formatCurrency(data.gainLoss);
 
-        // Update gain/loss color
+        // Flag a loss in red and a gain in green
         const gainLossEl = document.getElementById('gainLoss');
-        gainLossEl.style.color = data.gainLoss >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
+        gainLossEl.classList.toggle('neg', data.gainLoss < 0);
+        gainLossEl.classList.toggle('pos', data.gainLoss >= 0);
 
         updateTimestamp();
     } catch (error) {
@@ -121,51 +130,48 @@ async function loadHoldings() {
                 const acctKey = acctType.toLowerCase().replace(/[^a-z]/g, '');
                 const acctSlug = acctType.toLowerCase().replace(/\s+/g, '-');
                 const hasHoldings = acct.holdings.length > 0;
-                const glClass = acct.gainLoss >= 0 ? 'positive' : 'negative';
                 const returnPct = acct.bookValue > 0 ? (acct.gainLoss / acct.bookValue) * 100 : 0;
                 const isFHSAMissingYear = acctType === 'FHSA' && fhsaNeedsOpenYear;
 
                 const card = document.createElement('div');
-                card.className = 'account-card account-card-link';
+                card.className = 'account-card-link';
                 card.addEventListener('click', () => { window.location.href = `/investments/${acctSlug}`; });
 
+                const glClassName = acct.gainLoss >= 0 ? 'pos' : 'neg';
                 const holdingWord = acct.holdings.length !== 1 ? 's' : '';
                 const setupBadge = isFHSAMissingYear
-                    ? '<span class="fhsa-setup-badge" title="Open year not set — click to configure"><i class="fas fa-asterisk"></i></span>'
+                    ? '<span class="setup-badge" title="Open year not set — click to configure">Setup required</span>'
                     : '';
+                const badge = `<span class="account-tag">${acctType}</span>`;
 
                 card.innerHTML = hasHoldings ? `
-                    <div class="account-card-header">
-                        <div class="account-card-title">
-                            <span class="account-badge account-${acctKey}">${acctType}</span>
-                            ${setupBadge}
-                            <span class="account-holding-count">${acct.holdings.length} holding${holdingWord}</span>
-                        </div>
-                        <div class="account-card-stats">
-                            <div class="account-stat">
-                                <span class="account-stat-label">Market Value</span>
-                                <span class="account-stat-value">${formatCurrency(acct.marketValue)}</span>
-                            </div>
-                            <div class="account-stat">
-                                <span class="account-stat-label">Book Value</span>
-                                <span class="account-stat-value">${formatCurrency(acct.bookValue)}</span>
-                            </div>
-                            <div class="account-stat">
-                                <span class="account-stat-label">Gain / Loss</span>
-                                <span class="account-stat-value ${glClass}">${acct.gainLoss >= 0 ? '+' : ''}${formatCurrency(acct.gainLoss)} <small>(${returnPct >= 0 ? '+' : ''}${returnPct.toFixed(1)}%)</small></span>
-                            </div>
-                        </div>
-                        <span class="account-arrow"><i class="fas fa-chevron-right"></i></span>
+                    <div class="account-card-id">
+                        ${badge}
+                        ${setupBadge}
+                        <span class="muted">${acct.holdings.length} holding${holdingWord}</span>
                     </div>
+                    <div class="account-card-metrics">
+                        <div>
+                            <div class="label">Market value</div>
+                            <div class="metric-value">${formatCurrency(acct.marketValue)}</div>
+                        </div>
+                        <div>
+                            <div class="label">Book value</div>
+                            <div class="metric-value">${formatCurrency(acct.bookValue)}</div>
+                        </div>
+                        <div>
+                            <div class="label">Gain / loss</div>
+                            <div class="metric-value mono ${glClassName}">${acct.gainLoss >= 0 ? '+' : ''}${formatCurrency(acct.gainLoss)} (${returnPct >= 0 ? '+' : ''}${returnPct.toFixed(1)}%)</div>
+                        </div>
+                    </div>
+                    <span class="chevron">${CHEVRON_SVG}</span>
                 ` : `
-                    <div class="account-card-header">
-                        <div class="account-card-title">
-                            <span class="account-badge account-${acctKey}">${acctType}</span>
-                            ${setupBadge}
-                            <span class="account-holding-count">No holdings</span>
-                        </div>
-                        <span class="account-arrow"><i class="fas fa-chevron-right"></i></span>
+                    <div class="account-card-id grow">
+                        ${badge}
+                        ${setupBadge}
+                        <span class="muted">No holdings</span>
                     </div>
+                    <span class="chevron">${CHEVRON_SVG}</span>
                 `;
 
                 container.appendChild(card);
@@ -177,10 +183,10 @@ async function loadHoldings() {
 
         // Always show "Open new account" button at the bottom
         const openBtn = document.createElement('button');
-        openBtn.className = 'btn-open-new-account';
+        openBtn.className = 'open-account-btn';
         openBtn.type = 'button';
         openBtn.onclick = openNewAccountModal;
-        openBtn.innerHTML = '<i class="fas fa-plus"></i> Open new account';
+        openBtn.innerHTML = PLUS_SVG + ' Open new account';
         container.appendChild(openBtn);
     } catch (error) {
         console.error('Error loading holdings:', error);
@@ -198,7 +204,7 @@ function renderAllocationChart(holdings) {
 
     if (holdings.length === 0) {
         const legendEl = document.getElementById('allocationLegend');
-        legendEl.innerHTML = '<p class="empty-chart-msg">Add holdings to see allocation</p>';
+        legendEl.innerHTML = '<p class="empty-note">Add holdings to see allocation</p>';
         return;
     }
 
@@ -213,7 +219,7 @@ function renderAllocationChart(holdings) {
     if (otherValue > 0.01) slices.push({ ticker: 'Other', marketValue: otherValue });
 
     const colors = slices.map((s, i) =>
-        s.ticker === 'Other' ? '#4b5563' : chartColors[i % chartColors.length]
+        s.ticker === 'Other' ? '#9A9EA6' : chartColors[i % chartColors.length]
     );
 
     allocationChart = new Chart(ctx, {
@@ -224,7 +230,7 @@ function renderAllocationChart(holdings) {
                 data: slices.map(s => s.marketValue),
                 backgroundColor: colors,
                 borderWidth: 2,
-                borderColor: '#161618',
+                borderColor: '#FFFFFF',
                 hoverOffset: 6,
             }]
         },
@@ -235,8 +241,8 @@ function renderAllocationChart(holdings) {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: '#1e1e22',
-                    borderColor: '#2e2e34',
+                    backgroundColor: '#16181D',
+                    borderColor: '#16181D',
                     borderWidth: 1,
                     padding: 10,
                     callbacks: {
@@ -270,13 +276,13 @@ function renderAllocationChart(holdings) {
         const item = document.createElement('div');
         item.className = 'legend-item';
         item.innerHTML = `
-            <span class="legend-color" style="background: ${colors[i]}"></span>
+            <span class="legend-dot" style="background:${colors[i]}"></span>
             <span class="legend-ticker">${s.ticker}</span>
-            <div class="legend-bar-track">
-                <div class="legend-bar-fill" style="width: ${pct.toFixed(1)}%; background: ${colors[i]}"></div>
+            <div class="legend-track">
+                <div class="legend-fill" style="width:${pct.toFixed(1)}%;background:${colors[i]}"></div>
             </div>
             <span class="legend-pct">${pct.toFixed(1)}%</span>
-            <span class="legend-value">${formatCurrency(s.marketValue)}</span>
+            <span class="legend-val">${formatCurrency(s.marketValue)}</span>
         `;
         legendEl.appendChild(item);
     });
@@ -306,8 +312,8 @@ function renderPerformanceChart(holdings) {
 
     const labels = chartHoldings.map(h => h.ticker);
     const gainLossValues = chartHoldings.map(h => h.gainLoss);
-    const colors = gainLossValues.map(v => v >= 0 ? 'rgba(16, 185, 129, 0.8)' : 'rgba(239, 68, 68, 0.8)');
-    const borderColors = gainLossValues.map(v => v >= 0 ? '#059669' : '#dc2626');
+    const colors = gainLossValues.map(v => v >= 0 ? 'rgba(31, 122, 77, 0.85)' : 'rgba(180, 67, 47, 0.85)');
+    const borderColors = gainLossValues.map(v => v >= 0 ? '#1F7A4D' : '#B4432F');
 
     performanceChart = new Chart(ctx, {
         type: 'bar',
@@ -328,6 +334,7 @@ function renderPerformanceChart(holdings) {
             plugins: {
                 legend: { display: false },
                 tooltip: {
+                    backgroundColor: '#16181D',
                     callbacks: {
                         label: function(context) {
                             const holding = chartHoldings[context.dataIndex];
@@ -344,7 +351,7 @@ function renderPerformanceChart(holdings) {
             scales: {
                 y: {
                     beginAtZero: true,
-                    grid: { color: 'rgba(0,0,0,0.05)' },
+                    grid: { color: '#EFEBE0' },
                     ticks: {
                         callback: function(value) {
                             return formatCurrency(value);
@@ -353,7 +360,7 @@ function renderPerformanceChart(holdings) {
                 },
                 x: {
                     grid: { display: false },
-                    ticks: { font: { weight: 'bold' } }
+                    ticks: { font: { weight: '600' } }
                 }
             }
         }
@@ -501,14 +508,14 @@ function openNewAccountModal() {
         const isRegistered = registeredAccountKeys.includes(acct.key);
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'new-account-option' + (isRegistered ? ' registered' : '');
         btn.disabled = isRegistered;
+        btn.className = 'account-option';
         btn.innerHTML = `
-            <span class="new-account-option-label">${acct.label}</span>
-            <span class="new-account-option-desc">${acct.description}</span>
+            <span class="opt-name">${acct.label}</span>
+            <span class="opt-desc">${acct.description}</span>
             ${isRegistered
-                ? '<span class="new-account-option-tag">Already open</span>'
-                : '<i class="fas fa-chevron-right new-account-option-arrow"></i>'}
+                ? '<span class="opt-tag">Already open</span>'
+                : `<span class="chevron">${CHEVRON_SVG}</span>`}
         `;
         if (!isRegistered) {
             btn.onclick = () => acct.key === 'fhsa' ? showFHSAYearStep() : addNewAccount(acct.key);
@@ -620,7 +627,7 @@ function initializeTickerAutocomplete(inputId, dropdownId, hiddenInputId, nameIn
             const response = await fetch(`/api/tickers/search?q=${encodeURIComponent(query)}`);
             const data = await response.json();
 
-            if (data.error) {
+    if (data.error) {
                 throw new Error(data.error);
             }
 
@@ -628,7 +635,7 @@ function initializeTickerAutocomplete(inputId, dropdownId, hiddenInputId, nameIn
             displayResults(data.tickers);
         } catch (error) {
             console.error('Error searching tickers:', error);
-            dropdown.innerHTML = '<div class="ticker-item error">Error loading tickers</div>';
+            dropdown.innerHTML = '<div class="ticker-item ticker-msg error">Error loading tickers</div>';
             dropdown.classList.add('show');
         }
     }
@@ -636,7 +643,7 @@ function initializeTickerAutocomplete(inputId, dropdownId, hiddenInputId, nameIn
     // Display search results
     function displayResults(tickers) {
         if (tickers.length === 0) {
-            dropdown.innerHTML = '<div class="ticker-item no-results">No tickers found</div>';
+            dropdown.innerHTML = '<div class="ticker-item ticker-msg no-results">No tickers found</div>';
             dropdown.classList.add('show');
             return;
         }
@@ -648,7 +655,7 @@ function initializeTickerAutocomplete(inputId, dropdownId, hiddenInputId, nameIn
 
             // Show exchange if available
             const exchangeInfo = ticker.exchange && ticker.exchange !== 'N/A'
-                ? `<div class="ticker-exchange">${ticker.exchange}</div>`
+                ? `<div class="ticker-exch">${ticker.exchange}</div>`
                 : '';
 
             item.innerHTML = `

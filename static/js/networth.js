@@ -3,7 +3,7 @@ let fullHistory    = [];
 let activeRange    = 'ALL';
 let goals = [];
 let selectedIcon = 'fa-bullseye';
-let selectedColor = '#0FB9A8';
+let selectedColor = '#2F4BFF';
 let currentGoalType = 'target';
 
 const ICONS = [
@@ -22,15 +22,41 @@ const ICONS = [
 ];
 
 const COLORS = [
-    '#0FB9A8',
-    '#22C55E',
-    '#3B82F6',
-    '#8B5CF6',
-    '#F59E0B',
-    '#EF4444',
-    '#EC4899',
-    '#64748B',
+    '#2F4BFF',
+    '#1F7A4D',
+    '#0F766E',
+    '#7C3AED',
+    '#C2410C',
+    '#B4432F',
+    '#BE185D',
+    '#666A72',
 ];
+
+const ICON_PATHS = {
+    'fa-bullseye': '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>',
+    'fa-home': '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>',
+    'fa-car': '<path d="M5 16v-5l2-5h10l2 5v5"/><path d="M3 16h18"/><circle cx="7.5" cy="18" r="1.5"/><circle cx="16.5" cy="18" r="1.5"/>',
+    'fa-plane': '<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/>',
+    'fa-graduation-cap': '<path d="M2 9l10-5 10 5-10 5-10-5z"/><path d="M6 11.5V16c0 1.5 3 3 6 3s6-1.5 6-3v-4.5"/>',
+    'fa-piggy-bank': '<circle cx="12" cy="12" r="9"/><path d="M12 7v10"/><path d="M14.5 9.5c0-1-1-1.5-2.5-1.5s-2.5.7-2.5 1.7 1 1.4 2.5 1.8 2.5.8 2.5 1.8-1 1.7-2.5 1.7-2.5-.5-2.5-1.5"/>',
+    'fa-heart': '<path d="M12 20s-8-5-8-11a4.5 4.5 0 0 1 8-2.5A4.5 4.5 0 0 1 20 9c0 6-8 11-8 11z"/>',
+    'fa-shield-alt': '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z"/>',
+    'fa-chart-line': '<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
+    'fa-ring': '<circle cx="12" cy="15" r="6"/><path d="M9 6l3-3 3 3-3 3z"/>',
+    'fa-baby': '<circle cx="12" cy="12" r="9"/><circle cx="9" cy="10.5" r=".8"/><circle cx="15" cy="10.5" r=".8"/><path d="M9 15c1 1 5 1 6 0"/>',
+    'fa-laptop': '<rect x="4" y="5" width="16" height="11" rx="1"/><path d="M2 19h20"/>',
+    pen: '<path d="M4 20h4L19 9l-4-4L4 16v4z"/>',
+    trash: '<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/>',
+    calendar: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
+    check: '<path d="M5 12l5 5 9-10"/>',
+    flame: '<path d="M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-6 1-9z"/>',
+    circle: '<circle cx="12" cy="12" r="8"/>',
+};
+
+function svgIcon(name, size = 18) {
+    const paths = ICON_PATHS[name] || ICON_PATHS['fa-bullseye'];
+    return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+}
 
 // ── Formatters ──────────────────────────────────────────────────────
 
@@ -143,7 +169,7 @@ function updateHero(accounts, history) {
         const sign   = change >= 0 ? '+' : '';
         const el     = document.getElementById('heroNetWorthChange');
         el.textContent = `${sign}${formatCurrency(change)} (${sign}${pct}%) vs last snapshot`;
-        el.className   = 'nw-hero-change ' + (change >= 0 ? 'nw-hero-up' : 'nw-hero-down');
+        el.className = 'stat-sub ' + (change >= 0 ? 'pos' : 'neg');
     }
 }
 
@@ -194,9 +220,10 @@ function renderChart(history) {
     const ctx2d    = canvas.getContext('2d');
     const h        = canvas.offsetHeight || 300;
     const gradient = ctx2d.createLinearGradient(0, 0, 0, h);
-    gradient.addColorStop(0,   'rgba(15,185,168,0.35)');
-    gradient.addColorStop(0.6, 'rgba(15,185,168,0.08)');
-    gradient.addColorStop(1,   'rgba(15,185,168,0)');
+    gradient.addColorStop(0,   'rgba(47,75,255,0.18)');
+    gradient.addColorStop(0.6, 'rgba(47,75,255,0.05)');
+    gradient.addColorStop(1,   'rgba(47,75,255,0)');
+    Chart.defaults.font.family = "'DM Sans', system-ui, sans-serif";
 
     const labels = history.map(s => s.monthKey);
 
@@ -208,14 +235,14 @@ function renderChart(history) {
                 {
                     label: 'Net Worth',
                     data: history.map(s => s.total),
-                    borderColor: '#0FB9A8',
+                    borderColor: '#2F4BFF',
                     backgroundColor: gradient,
                     borderWidth: 2,
                     tension: 0.4,
                     fill: true,
                     pointRadius: 0,
                     pointHoverRadius: 5,
-                    pointHoverBackgroundColor: '#0FB9A8',
+                    pointHoverBackgroundColor: '#2F4BFF',
                     pointHoverBorderColor: 'white',
                     pointHoverBorderWidth: 2,
                 },
@@ -229,9 +256,9 @@ function renderChart(history) {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: 'rgba(15,23,42,0.9)',
-                    titleColor: 'rgba(255,255,255,0.5)',
-                    bodyColor: '#0FB9A8',
+                    backgroundColor: '#16181D',
+                    titleColor: 'rgba(255,255,255,0.65)',
+                    bodyColor: '#FFFFFF',
                     padding: { top: 10, bottom: 10, left: 14, right: 14 },
                     cornerRadius: 8,
                     titleFont: { size: 11 },
@@ -249,11 +276,11 @@ function renderChart(history) {
                     ticks: {
                         maxTicksLimit: 4,
                         callback: v => formatShortCurrency(v),
-                        color: '#444448',
-                        font: { size: 10 },
+                        color: '#666A72',
+                        font: { size: 11, family: "'DM Mono', monospace" },
                         padding: 10,
                     },
-                    grid: { color: 'rgba(255,255,255,0.04)', drawTicks: false },
+                    grid: { color: '#E6E1D6', drawTicks: false },
                 },
                 x: {
                     display: false,
@@ -281,11 +308,18 @@ function renderGoals(goalsArr) {
 }
 
 function renderGoalCard(goal) {
-    const color = goal.color || '#0FB9A8';
+    const color = goal.color || '#2F4BFF';
     const icon  = goal.icon  || 'fa-bullseye';
     return goal.goalType === 'periodic'
         ? renderPeriodicCard(goal, color, icon)
         : renderTargetCard(goal, color, icon);
+}
+
+function goalActionsHtml(goal) {
+    return `<div class="goal-actions">
+        <button class="icon-btn" onclick="editGoal(${goal.id})" title="Edit" aria-label="Edit goal">${svgIcon('pen', 15)}</button>
+        <button class="icon-btn" onclick="deleteGoalConfirm(${goal.id})" title="Delete" aria-label="Delete goal">${svgIcon('trash', 15)}</button>
+    </div>`;
 }
 
 function renderTargetCard(goal, color, icon) {
@@ -294,48 +328,37 @@ function renderTargetCard(goal, color, icon) {
         : 0;
 
     const deadlineHtml = goal.deadline
-        ? `<span class="goal-deadline"><i class="fas fa-calendar-alt"></i> ${formatDate(goal.deadline)}</span>`
+        ? `<span class="goal-meta">${svgIcon('calendar', 13)} ${formatDate(goal.deadline)}</span>`
         : '';
 
     const contribHtml = goal.monthlyContribution > 0
-        ? `<span class="goal-contrib">${formatCurrency(goal.monthlyContribution)}/mo</span>`
+        ? `<span class="chip">${formatCurrency(goal.monthlyContribution)}/mo</span>`
         : '';
 
     const remaining = Math.max(0, goal.targetAmount - goal.currentAmount);
     const etaHtml = (goal.monthlyContribution > 0 && remaining > 0)
-        ? `<span class="goal-eta">${Math.ceil(remaining / goal.monthlyContribution)} mo to go</span>`
+        ? `<span class="chip">${Math.ceil(remaining / goal.monthlyContribution)} mo to go</span>`
         : '';
 
     return `
-    <div class="goal-card" data-id="${goal.id}">
-        <div class="goal-card-top">
-            <div class="goal-icon-wrap" style="background:${hexToRgba(color, 0.12)};color:${color}">
-                <i class="fas ${icon}"></i>
-            </div>
-            <div class="goal-title-area">
+    <div class="card goal-card" data-id="${goal.id}">
+        <div class="goal-head">
+            <div class="goal-icon" style="background:${hexToRgba(color, 0.12)};color:${color}">${svgIcon(icon, 20)}</div>
+            <div class="goal-info">
                 <h3 class="goal-title">${escapeHtml(goal.title)}</h3>
                 ${deadlineHtml}
             </div>
-            <div class="goal-card-actions">
-                <button class="goal-action-btn" onclick="editGoal(${goal.id})" title="Edit">
-                    <i class="fas fa-pen"></i>
-                </button>
-                <button class="goal-action-btn goal-action-delete" onclick="deleteGoalConfirm(${goal.id})" title="Delete">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
+            ${goalActionsHtml(goal)}
         </div>
         <div class="goal-amounts">
-            <span class="goal-current" style="color:${color}">${formatCurrency(goal.currentAmount)}</span>
-            <span class="goal-sep"> / </span>
-            <span class="goal-target-val">${formatCurrency(goal.targetAmount)}</span>
+            <span style="color:${color}">${formatCurrency(goal.currentAmount)}</span>
+            <span class="sep"> / </span>
+            <span class="of">${formatCurrency(goal.targetAmount)}</span>
         </div>
-        <div class="goal-progress-bar">
-            <div class="goal-progress-fill" style="width:${pct}%;background:${color}"></div>
-        </div>
-        <div class="goal-card-footer">
-            <span class="goal-pct">${pct}% complete</span>
-            <div class="goal-footer-right">${contribHtml}${etaHtml}</div>
+        <div class="goal-bar"><span style="width:${pct}%;background:${color}"></span></div>
+        <div class="goal-foot">
+            <span class="pct">${pct}% complete</span>
+            <div class="goal-chips">${contribHtml}${etaHtml}</div>
         </div>
     </div>`;
 }
@@ -349,43 +372,30 @@ function renderPeriodicCard(goal, color, icon) {
     const streak    = goal.streakCount || 0;
 
     const streakHtml = streak > 0
-        ? `<span class="goal-streak"><i class="fas fa-fire"></i> ${streak} streak</span>`
-        : `<span class="goal-streak goal-streak-empty"><i class="far fa-circle"></i> Start your streak</span>`;
+        ? `<span class="goal-streak on">${svgIcon('flame', 18)} ${streak} streak</span>`
+        : `<span class="goal-streak off">${svgIcon('circle', 18)} Start your streak</span>`;
 
     const lastCheckin = goal.lastCheckIn
-        ? `<span class="goal-last-checkin">Last: ${formatDate(goal.lastCheckIn)}</span>`
-        : '';
+        ? `<span class="goal-meta">Last: ${formatDate(goal.lastCheckIn)}</span>`
+        : '<span></span>';
 
     return `
-    <div class="goal-card goal-card-periodic" data-id="${goal.id}">
-        <div class="goal-card-top">
-            <div class="goal-icon-wrap" style="background:${hexToRgba(color, 0.12)};color:${color}">
-                <i class="fas ${icon}"></i>
-            </div>
-            <div class="goal-title-area">
+    <div class="card goal-card" data-id="${goal.id}">
+        <div class="goal-head">
+            <div class="goal-icon" style="background:${hexToRgba(color, 0.12)};color:${color}">${svgIcon(icon, 20)}</div>
+            <div class="goal-info">
                 <h3 class="goal-title">${escapeHtml(goal.title)}</h3>
-                <span class="goal-freq-badge">${capitalize(goal.contributionFrequency || 'Monthly')}</span>
+                <span class="goal-freq">${capitalize(goal.contributionFrequency || 'Monthly')}</span>
             </div>
-            <div class="goal-card-actions">
-                <button class="goal-action-btn" onclick="editGoal(${goal.id})" title="Edit">
-                    <i class="fas fa-pen"></i>
-                </button>
-                <button class="goal-action-btn goal-action-delete" onclick="deleteGoalConfirm(${goal.id})" title="Delete">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
+            ${goalActionsHtml(goal)}
         </div>
-        <div class="goal-periodic-center">
+        <div class="goal-foot">
             ${streakHtml}
-            <span class="goal-periodic-amount">
-                ${formatCurrency(goal.monthlyContribution)}<span class="goal-per-label">/${freqLabel}</span>
-            </span>
+            <span class="goal-contrib">${formatCurrency(goal.monthlyContribution)}<small>/${freqLabel}</small></span>
         </div>
-        <div class="goal-card-footer">
+        <div class="goal-foot">
             ${lastCheckin}
-            <button class="btn goal-checkin-btn" style="background:${color};color:white" onclick="checkInGoal(${goal.id})">
-                <i class="fas fa-check"></i> Check In
-            </button>
+            <button class="checkin-btn" onclick="checkInGoal(${goal.id})" style="background:${color}">${svgIcon('check', 15)} Check in</button>
         </div>
     </div>`;
 }
@@ -405,17 +415,17 @@ function openGoalModal(goalData = null) {
         ? goalData.contributionFrequency : 'monthly';
 
     selectedIcon  = goalData ? (goalData.icon  || 'fa-bullseye') : 'fa-bullseye';
-    selectedColor = goalData ? (goalData.color || '#0FB9A8')     : '#0FB9A8';
+    selectedColor = goalData ? (goalData.color || '#2F4BFF')     : '#2F4BFF';
 
     setGoalType(goalData ? (goalData.goalType || 'target') : 'target');
     refreshIconPicker();
     refreshColorPicker();
 
-    document.getElementById('goalModal').classList.remove('hidden');
+    document.getElementById('goalModal').classList.add('show');
 }
 
 function closeGoalModal() {
-    document.getElementById('goalModal').classList.add('hidden');
+    document.getElementById('goalModal').classList.remove('show');
 }
 
 function handleModalOverlayClick(e) {
@@ -514,16 +524,14 @@ async function checkInGoal(id) {
 function buildIconPicker() {
     const el = document.getElementById('iconPicker');
     el.innerHTML = ICONS.map(({ icon, label }) =>
-        `<button type="button" class="icon-pick-btn" data-icon="${icon}" title="${label}" onclick="selectIcon('${icon}')">
-            <i class="fas ${icon}"></i>
-        </button>`
+        `<button type="button" class="icon-pick-btn" data-icon="${icon}" title="${label}" aria-label="${label}" onclick="selectIcon('${icon}')">${svgIcon(icon, 18)}</button>`
     ).join('');
 }
 
 function buildColorPicker() {
     const el = document.getElementById('colorPicker');
     el.innerHTML = COLORS.map(color =>
-        `<button type="button" class="color-pick-btn" data-color="${color}" style="background:${color}" onclick="selectColor('${color}')"></button>`
+        `<button type="button" class="color-pick-btn" data-color="${color}" aria-label="Color ${color}" onclick="selectColor('${color}')" style="background:${color}"></button>`
     ).join('');
 }
 

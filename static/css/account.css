@@ -1,246 +1,47 @@
-/* account.css — styles for the account detail page */
+/* Account detail page (also loads stocks.css for shared modal/ticker/icon-button styles) */
 
-/* Back link in header */
-.back-link {
-    color: rgba(255, 255, 255, 0.85);
-    text-decoration: none;
-    font-size: 1rem;
-    margin-right: 0.5rem;
-    transition: color 0.15s;
-}
+.account-head-tag { font: 500 13px var(--font-mono); background: var(--track); border-radius: 999px; padding: 6px 12px; }
+.section-card { margin-top: 24px; padding: 8px 8px 0; }
+.section-card .card-title { padding: 16px 16px 4px; margin: 0; }
+.table-scroll { overflow-x: auto; }
+.table td.tx-muted { color: var(--muted); }
+.table td.tx-strong { font-weight: 600; }
+.table td.actions, .table th.actions { text-align: center; white-space: nowrap; }
+.empty-cell { text-align: center; color: var(--muted); padding: 40px 16px !important; }
 
-.back-link:hover {
-    color: #fff;
-}
+/* Contribution banner */
+.contrib-card { margin-bottom: 24px; padding: 24px 28px; }
+.contrib-title { display: flex; align-items: center; gap: 8px; font: 600 20px var(--font-display); }
+.contrib-detail { color: var(--muted); font-size: 14px; margin-top: 4px; }
+.contrib-progress { display: flex; align-items: center; gap: 16px; margin-top: 18px; }
+.contrib-progress .bar { flex: 1; height: 10px; }
+.contrib-progress .mono { color: var(--muted); white-space: nowrap; min-width: 80px; }
+.contrib-progress .mono.end { text-align: right; }
+.contrib-pct { font: 500 14px var(--font-mono); min-width: 56px; text-align: right; color: var(--accent); }
+.stat-row { display: flex; gap: 40px; flex-wrap: wrap; margin-top: 16px; }
+.stat-row .stat-value { font-size: 24px; margin-top: 6px; }
+.setup-form { margin-top: 14px; }
+.setup-form .input { width: 140px; font-family: var(--font-mono); }
+.setup-row { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
 
-.header-account-label {
-    font-size: 1rem;
-    font-weight: 400;
-    opacity: 0.8;
-    margin-left: 0.25rem;
-}
+/* Info tooltip */
+.info-tooltip-wrapper { position: relative; display: inline-flex; align-items: center; color: var(--muted); }
+.info-tooltip { display: none; position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%); background: var(--ink); color: var(--ground); font: 400 12px/1.5 var(--font-body); padding: 8px 12px; border-radius: 8px; width: 260px; z-index: 100; pointer-events: none; }
+.info-tooltip-wrapper:hover .info-tooltip { display: block; }
+.info-tooltip-wrapper:hover { color: var(--accent); }
 
-/* Contribution Banner */
-.contrib-banner {
-    background: var(--card-bg);
-    border-radius: 1.25rem;
-    box-shadow: var(--shadow);
-    padding: 1.25rem 1.5rem;
-    margin-bottom: 1rem;
-    border: 1px solid var(--border-color);
-}
+/* Stats strip */
+.stats-strip { display: none; margin-bottom: 24px; padding: 0; overflow: hidden; }
+.stats-strip > div { flex: 1; padding: 20px 24px; border-right: 1px solid var(--line); min-width: 160px; }
+.stats-strip > div:last-child { border-right: 0; }
+.stats-strip .stat-value { font-size: 26px; margin-top: 6px; }
 
-.contrib-banner-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    margin-bottom: 1rem;
-}
+.return-pill { display: inline-block; padding: 4px 10px; border-radius: 999px; font: 500 12px var(--font-mono); }
+.return-pill.pos { background: #E4F2EA; }
+.return-pill.neg { background: #F8E6E1; }
 
-.contrib-banner-title {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-}
+.btn-success { background: var(--pos); color: #fff; }
 
-/* Info tooltip icon */
-.info-tooltip-wrapper {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-}
-
-.info-icon {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    cursor: default;
-    transition: color 0.15s;
-}
-
-.info-tooltip-wrapper:hover .info-icon {
-    color: var(--primary-color);
-}
-
-.info-tooltip {
-    display: none;
-    position: absolute;
-    left: 50%;
-    bottom: calc(100% + 8px);
-    transform: translateX(-50%);
-    background: #F0F0F2;
-    color: #0D0E10;
-    font-size: 0.78rem;
-    font-weight: 400;
-    line-height: 1.5;
-    padding: 0.5rem 0.75rem;
-    border-radius: 0.5rem;
-    white-space: normal;
-    width: 260px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-    z-index: 100;
-    pointer-events: none;
-}
-
-.info-tooltip::after {
-    content: '';
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    border: 5px solid transparent;
-    border-top-color: #F0F0F2;
-}
-
-.info-tooltip-wrapper:hover .info-tooltip {
-    display: block;
-}
-
-/* Contribution stats row */
-.contrib-stats-row {
-    display: flex;
-    gap: 2rem;
-    flex-wrap: wrap;
-    margin-bottom: 1rem;
-}
-
-.contrib-stat {
-    display: flex;
-    flex-direction: column;
-    gap: 0.125rem;
-}
-
-.contrib-stat-label {
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-secondary);
-    font-weight: 600;
-}
-
-.contrib-stat-value {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--text-primary);
-}
-
-.contrib-stat-value.contrib-note {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-    font-style: italic;
-}
-
-.contrib-over {
-    color: var(--danger-color) !important;
-}
-
-/* Progress bar inside banner */
-.contrib-bar-row {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    font-size: 0.8rem;
-}
-
-.contrib-bar-track {
-    flex: 1;
-    height: 0.6rem;
-    background: var(--border-color);
-    border-radius: 0.3rem;
-    overflow: hidden;
-}
-
-.contrib-bar-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #0FB9A8 0%, #0A9E90 100%);
-    border-radius: 0.3rem;
-    transition: width 0.5s ease;
-}
-
-.contrib-bar-label {
-    color: var(--text-secondary);
-    white-space: nowrap;
-    min-width: 80px;
-}
-
-.contrib-bar-label:last-of-type {
-    text-align: right;
-}
-
-.contrib-bar-pct {
-    font-weight: 700;
-    color: #0A9E90;
-    min-width: 3.5rem;
-    text-align: right;
-}
-
-/* FHSA open year setup prompt in contrib banner */
-.fhsa-setup-required-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: #fca5a5;
-    background: rgba(239,68,68,0.15);
-    border: 1px solid rgba(239,68,68,0.3);
-    border-radius: 0.25rem;
-    padding: 0.1rem 0.4rem;
-    margin-left: 0.5rem;
-    vertical-align: middle;
-}
-
-.fhsa-setup-prompt {
-    margin-top: 0.75rem;
-}
-
-.fhsa-setup-text {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    margin-bottom: 0.75rem;
-}
-
-.fhsa-setup-form {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.btn-sm {
-    padding: 0.35rem 0.85rem;
-    font-size: 0.85rem;
-}
-
-.form-error {
-    font-size: 0.8rem;
-    color: #fca5a5;
-    margin-top: 0.4rem;
-}
-
-/* Static form value (account pre-selected) */
-.form-static-value {
-    padding: 0.5rem 0;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .contrib-stats-row {
-        gap: 1rem;
-    }
-
-    .contrib-stat-value {
-        font-size: 0.95rem;
-    }
-
-    .contrib-bar-label {
-        min-width: 60px;
-        font-size: 0.7rem;
-    }
-
-    .contrib-banner {
-        padding: 1rem;
-    }
-}
+.mt-12 { margin-top: 12px; }
+.section-card.first { margin-top: 0; }
+.table-scroll .table { min-width: 720px; }

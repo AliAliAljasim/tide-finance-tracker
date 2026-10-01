@@ -1,242 +1,163 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard — Financial Manager{% endblock %}
+{% block title %}Dashboard — Tide{% endblock %}
 
 {% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 {% endblock %}
 
 {% block content %}
-<!-- Hero Banner -->
-<div class="dashboard-hero">
-    <h1 class="dashboard-greeting">
-        <span id="greetingTime">Good evening</span>, {{ (session.user_name | default('there')).split(' ')[0] }}
-    </h1>
-</div>
-
-<!-- Quick Action Pills -->
-<div class="dashboard-pill-strip">
-    <a href="/diary" class="pill-btn">
-        <i class="fas fa-book"></i>
-        <span>Diary</span>
-    </a>
-    <a href="/stocks" class="pill-btn">
-        <i class="fas fa-chart-pie"></i>
-        <span>Investments</span>
-    </a>
-    <a href="/networth" class="pill-btn">
-        <i class="fas fa-chart-line"></i>
-        <span>Net Worth</span>
-    </a>
-</div>
-
-<main class="main-content">
-    <div class="dashboard-main-grid">
-        <!-- Accounts List -->
-        <div class="card accounts-list-card">
-            <div class="card-header">
-                <h2><i class="fas fa-university"></i> Accounts</h2>
-            </div>
-            <div class="card-body">
-                <div id="accountListItems"></div>
-                <div id="accountListTotal"></div>
-            </div>
+<main class="page">
+    <div class="page-head">
+        <div>
+            <h1 class="page-title"><span id="greetingTime">Good evening</span>, {{ (session.user_name | default('there')).split(' ')[0] }}</h1>
+            <p class="page-sub hero-sentence" id="heroSentence">Tracking your savings pace for this month&hellip;</p>
         </div>
-
-        <!-- Account Breakdown -->
-        <div class="card account-balances-card">
-            <div class="card-header">
-                <h2><i class="fas fa-chart-pie"></i> Breakdown</h2>
-            </div>
-            <div class="card-body">
-                <div class="chart-container-pie">
-                    <canvas id="accountChart"></canvas>
-                </div>
-            </div>
+        <div class="page-actions">
+            <a href="/diary" class="btn btn-primary">Add transaction</a>
         </div>
-
     </div>
+
+    <div class="row dash-top">
+        <section class="card card-lg dash-balance" aria-label="Total balance">
+            <div class="label">Total balance</div>
+            <div id="acctHeroValue" class="stat-value dash-balance-value">$0.00</div>
+            <div id="acctHeroBreakdown" class="acct-breakdown"></div>
+        </section>
+
+        <section class="card card-lg dash-explore" aria-label="Explore">
+            <div class="label">Explore</div>
+            <nav class="explore-list">
+                <a href="/diary" class="explore-link"><span>Diary</span><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4"/></svg></a>
+                <a href="/stocks" class="explore-link"><span>Investments</span><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4"/></svg></a>
+                <a href="/networth" class="explore-link"><span>Net worth</span><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4"/></svg></a>
+            </nav>
+        </section>
+    </div>
+
+    <section class="card card-lg dash-breakdown" aria-label="Breakdown">
+        <div class="label">Breakdown</div>
+        <div class="chart-box"><canvas id="accountChart"></canvas></div>
+    </section>
 </main>
 {% endblock %}
 
 {% block modals %}
-<!-- Diary Reminder Modal -->
-<div id="diaryReminderModal" class="modal-overlay hidden">
-    <div class="modal-box">
-        <div class="modal-icon">
-            <i class="fas fa-book-open"></i>
-        </div>
-        <h2 class="modal-title">Monthly Diary Reminder</h2>
-        <p class="modal-message">
-            You haven't filled out your financial diary for <strong id="diaryReminderMonth"></strong> yet.
-            Reflecting on your finances helps you stay on track!
-        </p>
-        <div class="modal-actions">
-            <a href="/diary" class="btn btn-primary">
-                <i class="fas fa-book"></i> Go to Diary
-            </a>
-            <button class="btn btn-secondary" onclick="dismissDiaryReminder()">
-                Remind me later
-            </button>
+<div id="diaryReminderModal" class="modal show hidden">
+    <div class="modal-box reminder-box">
+        <div class="modal-body reminder-body">
+            <h2 class="modal-title">Monthly diary reminder</h2>
+            <p class="reminder-text">You haven't filled out your financial diary for <strong id="diaryReminderMonth"></strong> yet. Reflecting on your finances helps you stay on track.</p>
+            <div class="reminder-actions">
+                <a href="/diary" class="btn btn-primary">Go to diary</a>
+                <button onclick="dismissDiaryReminder()" type="button" class="btn btn-outline">Remind me later</button>
+            </div>
         </div>
     </div>
 </div>
 
 {% if not onboarding_complete %}
-<!-- Onboarding Checklist Modal -->
-<div id="onboardingModal" class="onboarding-modal">
-    <div class="onboarding-modal-content">
-
-        <!-- Progress bar -->
-        <div class="onboarding-progress-bar">
-            <div class="onboarding-progress-fill" id="onboardingProgressFill" style="width:20%"></div>
+<div id="onboardingModal" class="modal onboarding-modal">
+    <div class="modal-box onboarding-box">
+        <div class="onboarding-progress"><div id="onboardingProgressFill" class="onboarding-progress-fill"></div></div>
+        <div class="modal-head onboarding-head">
+            <div>
+                <h2 class="modal-title">Welcome! Let&rsquo;s get you set up</h2>
+                <p class="ob-note">Complete these steps to get the most out of your dashboard.</p>
+                <div id="onboardingProgressLabel" class="mono onboarding-count">1 / 5 complete</div>
+            </div>
         </div>
 
-        <!-- Header -->
-        <div class="onboarding-header">
-            <h2><i class="fas fa-rocket"></i> Welcome! Let's get you set up</h2>
-            <p>Complete these steps to get the most out of your dashboard.</p>
-            <div class="onboarding-progress-label" id="onboardingProgressLabel">1 / 5 complete</div>
-        </div>
-
-        <!-- Checklist -->
-        <div class="onboarding-body">
-
-            <!-- Step 1: Auto-complete -->
+        <div class="modal-body onboarding-steps">
             <div class="onboarding-item completed" id="obStep1">
-                <div class="onboarding-item-header" style="cursor:default;">
-                    <div class="onboarding-check"><i class="fas fa-check"></i></div>
+                <div class="onboarding-item-header">
+                    <span class="onboarding-check"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg></span>
                     <span class="onboarding-item-title">Account created</span>
                 </div>
             </div>
 
-            <!-- Step 2: Add holdings -->
             <div class="onboarding-item" id="obStep2">
                 <button class="onboarding-item-header" onclick="obToggle(2)" type="button">
-                    <div class="onboarding-check"><i class="fas fa-check"></i></div>
+                    <span class="onboarding-check"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg></span>
                     <span class="onboarding-item-title">Add investment holdings</span>
-                    <i class="fas fa-chevron-down onboarding-item-chevron"></i>
+                    <svg class="onboarding-item-chevron" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
                 </button>
                 <div class="onboarding-item-body">
-                    <div class="onboarding-form-group">
-                        <label>Stock / ETF Ticker</label>
+                    <div class="ob-block">
+                        <label class="field" for="obTicker"><span>Stock / ETF ticker</span></label>
                         <div class="ticker-autocomplete">
-                            <input type="text" id="obTicker" class="ticker-input" placeholder="Search ticker (e.g. AAPL, VCN.TO)..." autocomplete="off">
+                            <input type="text" id="obTicker" class="input" placeholder="Search ticker (e.g. AAPL, VCN.TO)..." autocomplete="off">
                             <div class="ticker-dropdown" id="obTickerDropdown"></div>
                         </div>
                         <input type="hidden" id="obTickerSymbol">
                         <input type="hidden" id="obTickerName">
                     </div>
-                    <div class="onboarding-form-row">
-                        <div class="onboarding-form-group">
-                            <label>Account Type</label>
-                            <select id="obAccountType">
-                                <option value="TFSA">TFSA</option>
-                                <option value="RRSP">RRSP</option>
-                                <option value="FHSA">FHSA</option>
-                                <option value="RESP">RESP</option>
-                                <option value="Non-Registered">Non-Registered</option>
-                            </select>
-                        </div>
+                    <div class="ob-block">
+                        <label class="field"><span>Account type</span><select id="obAccountType" class="select"><option value="TFSA">TFSA</option><option value="RRSP">RRSP</option><option value="FHSA">FHSA</option><option value="RESP">RESP</option><option value="Non-Registered">Non-Registered</option></select></label>
                     </div>
-                    <div class="onboarding-form-row">
-                        <div class="onboarding-form-group">
-                            <label>Shares</label>
-                            <input type="number" id="obShares" placeholder="0.0000" min="0" step="any">
-                        </div>
-                        <div class="onboarding-form-group">
-                            <label>Avg Cost / Share ($)</label>
-                            <input type="number" id="obAvgCost" placeholder="0.00" min="0" step="any">
-                        </div>
+                    <div class="form-row ob-block">
+                        <label class="field"><span>Shares</span><input type="number" id="obShares" placeholder="0.0000" min="0" step="any" class="input mono"></label>
+                        <label class="field"><span>Avg cost / share ($)</span><input type="number" id="obAvgCost" placeholder="0.00" min="0" step="any" class="input mono"></label>
                     </div>
-                    <button class="onboarding-step-btn" onclick="obAddHolding()" type="button">
-                        <i class="fas fa-plus"></i> Add Holding
-                    </button>
-                    <div class="onboarding-holdings-list" id="obHoldingsList"></div>
-                    <button class="onboarding-step-btn secondary" id="obStep2DoneBtn" onclick="obMarkStep(2)" type="button" disabled>
-                        <i class="fas fa-check"></i> Mark as done
-                    </button>
-                    <span class="onboarding-step-hint">You can add more holdings later from the Investments page.</span>
+                    <button onclick="obAddHolding()" type="button" class="btn btn-primary btn-sm">Add holding</button>
+                    <div id="obHoldingsList" class="ob-list"></div>
+                    <button id="obStep2DoneBtn" onclick="obMarkStep(2)" type="button" disabled class="btn btn-outline btn-sm ob-done">Mark as done</button>
+                    <p class="ob-note">You can add more holdings later from the Investments page.</p>
                 </div>
             </div>
 
-            <!-- Step 3: Income & wage -->
             <div class="onboarding-item" id="obStep3">
                 <button class="onboarding-item-header" onclick="obToggle(3)" type="button">
-                    <div class="onboarding-check"><i class="fas fa-check"></i></div>
+                    <span class="onboarding-check"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg></span>
                     <span class="onboarding-item-title">Set income &amp; wage</span>
-                    <i class="fas fa-chevron-down onboarding-item-chevron"></i>
+                    <svg class="onboarding-item-chevron" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
                 </button>
                 <div class="onboarding-item-body">
-                    <div class="onboarding-form-row">
-                        <div class="onboarding-form-group">
-                            <label>Hourly Wage ($)</label>
-                            <input type="number" id="obHourlyWage" placeholder="20.00" min="0" step="0.01">
-                        </div>
-                        <div class="onboarding-form-group">
-                            <label>Hours / Week</label>
-                            <input type="number" id="obHoursPerWeek" placeholder="40" min="0" step="0.5">
-                        </div>
+                    <div class="form-row ob-block">
+                        <label class="field"><span>Hourly wage ($)</span><input type="number" id="obHourlyWage" placeholder="20.00" min="0" step="0.01" class="input mono"></label>
+                        <label class="field"><span>Hours / week</span><input type="number" id="obHoursPerWeek" placeholder="40" min="0" step="0.5" class="input mono"></label>
                     </div>
-                    <button class="onboarding-step-btn" onclick="obSaveIncome()" type="button">
-                        Save Income Settings
-                    </button>
-                    <div class="onboarding-step-success" id="obStep3Success">
-                        <i class="fas fa-check-circle"></i> Saved!
-                    </div>
+                    <button onclick="obSaveIncome()" type="button" class="btn btn-primary btn-sm">Save income settings</button>
+                    <div id="obStep3Success" class="onboarding-step-success">Saved</div>
                 </div>
             </div>
 
-            <!-- Step 4: Savings target -->
             <div class="onboarding-item" id="obStep4">
                 <button class="onboarding-item-header" onclick="obToggle(4)" type="button">
-                    <div class="onboarding-check"><i class="fas fa-check"></i></div>
+                    <span class="onboarding-check"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg></span>
                     <span class="onboarding-item-title">Set savings target</span>
-                    <i class="fas fa-chevron-down onboarding-item-chevron"></i>
+                    <svg class="onboarding-item-chevron" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
                 </button>
                 <div class="onboarding-item-body">
-                    <div class="onboarding-form-group">
-                        <label>Savings Target (% of monthly income)</label>
-                        <input type="number" id="obSavingsTarget" placeholder="20" min="0" max="100" step="1">
+                    <div class="ob-block">
+                        <label class="field"><span>Savings target (% of monthly income)</span><input type="number" id="obSavingsTarget" placeholder="20" min="0" max="100" step="1" class="input mono"></label>
                     </div>
-                    <button class="onboarding-step-btn" onclick="obSaveSavings()" type="button">
-                        Save Target
-                    </button>
-                    <div class="onboarding-step-success" id="obStep4Success">
-                        <i class="fas fa-check-circle"></i> Saved!
-                    </div>
+                    <button onclick="obSaveSavings()" type="button" class="btn btn-primary btn-sm">Save target</button>
+                    <div id="obStep4Success" class="onboarding-step-success">Saved</div>
                 </div>
             </div>
 
-            <!-- Step 5: Budget categories -->
             <div class="onboarding-item" id="obStep5">
                 <button class="onboarding-item-header" onclick="obToggle(5)" type="button">
-                    <div class="onboarding-check"><i class="fas fa-check"></i></div>
+                    <span class="onboarding-check"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg></span>
                     <span class="onboarding-item-title">Review budget categories</span>
-                    <i class="fas fa-chevron-down onboarding-item-chevron"></i>
+                    <svg class="onboarding-item-chevron" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
                 </button>
                 <div class="onboarding-item-body">
-                    <span class="onboarding-step-hint" style="margin-top:0.5rem;display:block;">Adjust your default monthly budget amounts:</span>
-                    <div id="obCategoriesList"></div>
-                    <button class="onboarding-step-btn" onclick="obSaveBudget()" type="button">
-                        Confirm Budget
-                    </button>
-                    <div class="onboarding-step-success" id="obStep5Success">
-                        <i class="fas fa-check-circle"></i> Budget confirmed!
-                    </div>
+                    <p class="ob-note">Adjust your default monthly budget amounts:</p>
+                    <div id="obCategoriesList" class="ob-list"></div>
+                    <button onclick="obSaveBudget()" type="button" class="btn btn-primary btn-sm ob-done">Confirm budget</button>
+                    <div id="obStep5Success" class="onboarding-step-success">Budget confirmed</div>
                 </div>
             </div>
 
-        </div><!-- /.onboarding-body -->
-
-        <!-- Footer -->
-        <div class="onboarding-footer">
-            <button class="onboarding-skip-btn" onclick="obSkip()" type="button">Skip for now</button>
-            <button class="onboarding-done-btn" id="obDoneBtn" onclick="obComplete()" type="button" disabled>
-                <i class="fas fa-check"></i> Done
-            </button>
         </div>
 
+        <div class="modal-foot">
+            <button onclick="obSkip()" type="button" class="btn btn-outline">Skip for now</button>
+            <button id="obDoneBtn" onclick="obComplete()" type="button" disabled class="btn btn-primary">Done</button>
+        </div>
     </div>
 </div>
 {% endif %}

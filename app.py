@@ -3,12 +3,9 @@ from datetime import datetime, date
 from werkzeug.security import generate_password_hash, check_password_hash
 import json
 import os
-import io
 import re
 import yfinance as yf
 from functools import wraps
-import anthropic
-import pdfplumber
 from firestore_db import fs
 
 app = Flask(__name__)
@@ -61,85 +58,6 @@ def account_balance(uid, account_name, starting_balance):
     income = sum(float(t.get('amount', 0)) for t in txs if t.get('type') == 'Income')
     expenses = sum(float(t.get('amount', 0)) for t in txs if t.get('type') == 'Expense')
     return float(starting_balance) + income - expenses
-
-# ===== Statement Parsing Helpers =====
-
-def extract_pdf_text(file_bytes):
-    parts = []
-    with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
-        for page in pdf.pages:
-            tables = page.extract_tables()
-            if tables:
-                for table in tables:
-                    for row in table:
-                        if row:
-                            parts.append(' | '.join(str(cell or '').strip() for cell in row))
-            else:
-                text = page.extract_text()
-                if text:
-                    parts.append(text)
-    return '\n'.join(parts)
-
-
-def analyze_statement_with_claude(statement_text, categories, accounts):
-    api_key = os.environ.get('ANTHROPIC_API_KEY')
-    if not api_key:
-        raise ValueError('ANTHROPIC_API_KEY environment variable is not set.')
-
-    client = anthropic.Anthropic(api_key=api_key)
-    categories_str = ', '.join(categories) if categories else 'Groceries, Dining, Transport, Entertainment, Bills, Other'
-    accounts_str = ', '.join(accounts) if accounts else 'Chequing'
-
-    if len(statement_text) > 50000:
-        statement_text = statement_text[:50000] + '\n[truncated]'
-
-    prompt = f"""You are a financial data extraction assistant for a Canadian personal finance app. Analyze the bank/credit card statement below.
-
-User's expense categories: {categories_str}
-User's accounts: {accounts_str}
-
-Statement:
----
-{statement_text}
----
-
-Return ONLY a raw JSON object — no markdown, no code blocks, no explanation. Use this exact structure:
-{{
-  "month_key": "YYYY-MM",
-  "transactions": [
-    {{
-      "date": "YYYY-MM-DD",
-      "description": "clean short description",
-      "amount": 0.00,
-      "type": "Income",
-      "category": "category name",
-      "account": "account name"
-    }}
-  ],
-  "diary": {{
-    "overall_notes": "General summary of the month's financial picture",
-    "next_month_focus": "Specific actionable recommendations for next month"
-  }}
-}}
-
-Rules:
-- All dates in YYYY-MM-DD format
-- Amounts are always positive floats
-- Debits/withdrawals/purchases → "Expense"; Credits/deposits/refunds → "Income"
-- Skip internal transfers between own accounts
-- Match category to one of the user's categories; use "Other" if none fit
-- Match account to one of the user's accounts; default to the first account"""
-
-    message = client.messages.create(
-        model='claude-sonnet-4-6',
-        max_tokens=4096,
-        messages=[{'role': 'user', 'content': prompt}]
-    )
-
-    response_text = message.content[0].text.strip()
-    response_text = re.sub(r'^```(?:json)?\s*', '', response_text, flags=re.MULTILINE)
-    response_text = re.sub(r'\s*```\s*$', '', response_text, flags=re.MULTILINE)
-    return json.loads(response_text.strip())
 
 # ===== Auth & Helpers =====
 
@@ -377,6 +295,7 @@ def settings_page():
                       'single-parent':'Single Parent','living-with-family':'Living With Family'}
     return render_template('settings.html',
         user=user, settings=settings,
+        monthly_income_value=round(monthly_income(settings), 2),
         financial_goals=financial_goals,
         registered_accounts=registered_accounts,
         province_map=province_map,
@@ -1318,71 +1237,6 @@ def list_diaries():
         diaries.sort(key=lambda d: d.get('month_key', ''), reverse=True)
         result = [{'month_key': d.get('month_key', ''), 'updated_at': d.get('updated_at', '')[:10]} for d in diaries]
         return jsonify({'success': True, 'diaries': result})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/diary/parse-statement', methods=['POST'])
-@login_required
-def parse_statement():
-    try:
-        if not os.environ.get('ANTHROPIC_API_KEY'):
-            return jsonify({'error': 'Claude API key not configured. Set the ANTHROPIC_API_KEY environment variable.'}), 400
-        if 'file' not in request.files:
-            return jsonify({'error': 'No file uploaded.'}), 400
-        file = request.files['file']
-        if not file.filename:
-            return jsonify({'error': 'No file selected.'}), 400
-
-        filename = file.filename.lower()
-        file_bytes = file.read()
-
-        if filename.endswith('.pdf'):
-            statement_text = extract_pdf_text(file_bytes)
-        elif filename.endswith('.csv'):
-            statement_text = file_bytes.decode('utf-8', errors='replace')
-        else:
-            return jsonify({'error': 'Unsupported format. Please upload a PDF or CSV file.'}), 400
-
-        if not statement_text.strip():
-            return jsonify({'error': 'Could not extract text from the file.'}), 400
-
-        uid = get_user_id()
-        user_categories = [c.get('name', '') for c in stream_docs(sub(uid, 'categories'))]
-        user_accounts   = [a.get('name', '') for a in stream_docs(sub(uid, 'accounts'))]
-
-        result = analyze_statement_with_claude(statement_text, user_categories, user_accounts)
-        return jsonify({'success': True, 'data': result})
-    except json.JSONDecodeError:
-        return jsonify({'error': 'Claude returned an unexpected response. Please try again.'}), 500
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/diary/import-statement', methods=['POST'])
-@login_required
-def import_statement():
-    try:
-        uid = get_user_id()
-        data = request.json
-        month_key = data.get('month_key')
-        transactions = data.get('transactions', [])
-
-        imported = 0
-        for tx in transactions:
-            if not tx.get('selected', True):
-                continue
-            sub(uid, 'transactions').add({
-                'date': tx['date'],
-                'name': tx['description'],
-                'category': tx.get('category', 'Other'),
-                'account': tx.get('account', ''),
-                'type': tx['type'],
-                'amount': float(tx['amount']),
-                'month_key': tx['date'][:7],
-                'created_at': datetime.utcnow().isoformat(),
-            })
-            imported += 1
-
-        return jsonify({'success': True, 'imported': imported, 'month_key': month_key})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
