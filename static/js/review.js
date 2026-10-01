@@ -56,10 +56,10 @@ function rowHtml(tx) {
     let rowStyle = '';
     let banner = '';
     if (tx.flagged) {
-        rowStyle = ' style="background:#F7E7E3;"';
+        rowStyle = ' style="background:#2E1C1C;"';
         banner = `<div style="font-size:12px;color:var(--neg);margin-top:4px;">${escapeHtml(tx.flag_reason)}</div>`;
     } else if (tx.is_duplicate) {
-        rowStyle = ' style="background:#F2EBD9;"';
+        rowStyle = ' style="background:#2E2814;"';
         banner = `<div style="font-size:12px;color:var(--accent);margin-top:4px;">This looks like a duplicate of an existing transaction.
             <button type="button" class="link dup-keep" style="background:none;border:0;cursor:pointer;margin-left:8px;">Keep</button>
             <button type="button" class="link dup-skip" style="background:none;border:0;cursor:pointer;color:var(--neg);margin-left:10px;">Skip</button></div>`;

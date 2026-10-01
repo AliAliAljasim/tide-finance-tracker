@@ -1,9 +1,11 @@
 .auth-split { display: flex; min-height: 100vh; }
-.auth-panel { flex: 1; background: var(--ink); color: var(--ground); padding: 56px 72px; display: flex; flex-direction: column; justify-content: space-between; }
-.auth-brand { color: var(--ground); font-size: 28px; }
+/* Deeper than the page's own --ground, so the hero panel reads as looking
+   into the vault — the form side (plain --ground) is the outer room. */
+.auth-panel { flex: 1; background: #0A0D12; color: var(--ink); padding: 56px 72px; display: flex; flex-direction: column; justify-content: space-between; }
+.auth-brand { color: var(--ink); font-size: 28px; }
 .auth-headline { font: 600 52px/1.12 var(--font-display); letter-spacing: -.01em; margin-bottom: 20px; }
-.auth-lede { font-size: 17px; line-height: 1.55; color: #A9BBAD; max-width: 440px; }
-.auth-foot { color: #8CA091; font-size: 13px; }
+.auth-lede { font-size: 17px; line-height: 1.55; color: #938C78; max-width: 440px; }
+.auth-foot { color: #847D6B; font-size: 13px; }
 .auth-main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 48px 24px; }
 .auth-form-wrap { width: 400px; max-width: 100%; }
 .auth-title { font: 700 34px var(--font-display); margin-bottom: 8px; }

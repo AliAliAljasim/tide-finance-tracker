@@ -3,19 +3,20 @@
 {% block head %}
 <style>
   .viz-root {
-    color-scheme: light;
+    color-scheme: dark;
     --surface-1: var(--surface);
     --text-primary: var(--ink);
     --text-secondary: var(--muted);
-    --text-muted: #94A299;
+    --text-muted: var(--muted);
     --grid-line: var(--line);
-    --axis-line: #A9BBA2;
-    /* Same ledger convention as everywhere else: credits in blue-black ink,
-       debits in red — no separate green for "positive." */
+    --axis-line: var(--border-input);
+    /* Same ledger convention as everywhere else: credits in ledger-ink
+       blue, debits in red — no separate green for "positive." */
     --series-income: var(--pos);
     --series-expense: var(--neg);
-    --cat-1: #2a78d6; --cat-2: #eb6834; --cat-3: #1baf7a; --cat-4: #eda100;
-    --cat-5: #e87ba4; --cat-6: #008300; --cat-7: #4a3aa7; --cat-other: var(--muted);
+    /* Dark-surface steps of the dataviz skill's validated categorical set. */
+    --cat-1: #3987e5; --cat-2: #d95926; --cat-3: #199e70; --cat-4: #c98500;
+    --cat-5: #d55181; --cat-6: #008300; --cat-7: #9085e9; --cat-other: var(--muted);
   }
   .viz-card { background: var(--surface-1); }
   .viz-legend { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
