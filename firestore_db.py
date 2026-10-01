@@ -3,8 +3,8 @@
 Implements the small subset of the google-cloud-firestore API that
 app.py relies on (collection/document/get/set/update/delete/where/
 limit/stream/add), backed by a single JSON file on disk instead of a
-remote Firestore database. This keeps app.py, models.py, etc. free of
-any Firestore-specific code changes.
+remote Firestore database. This keeps app.py free of any
+Firestore-specific code changes.
 """
 import copy
 import json
