@@ -2,13 +2,13 @@
 their correct category, run categorization, and record % correct against
 an 85%+ target.
 
-This exercises the keyword-rules path only (no ANTHROPIC_API_KEY is set in
-this environment, and no merchant_rules exist yet). The labeled set
+This exercises the keyword-rules path only (conftest.py turns the local
+LLM off, and no merchant_rules exist yet). The labeled set
 deliberately includes real-world-style descriptions the keyword rules
 *don't* cover (LCBO, Costco, Fido, "Royal Bank monthly fee", ...) so the
 score reflects genuine gaps rather than 100% self-matching against rules
 written for this same list. In production those gaps are exactly what the
-LLM categorization step (parsing.py's ANTHROPIC_API_KEY path) is for.
+local LLM categorization step (Ollama, see llm.py) is for.
 """
 import os
 import sys
@@ -115,7 +115,6 @@ def test_labeled_set_has_enough_rows():
 
 
 def test_categorization_accuracy_meets_target():
-    os.environ.pop('ANTHROPIC_API_KEY', None)  # exercise the keyword-only path
     txs = [{'description': desc, 'type': kind, 'amount': 25.00} for desc, kind, _ in LABELED_SET]
     categorize_transactions(txs, CATEGORIES, merchant_rules={})
 

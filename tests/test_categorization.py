@@ -72,9 +72,8 @@ def test_categorize_transactions_merchant_rule_overrides_keyword():
 
 
 def test_categorize_transactions_defaults_to_other_when_unmatched():
-    # No ANTHROPIC_API_KEY in the test environment, so this exercises the
-    # final fallback rather than a real AI call.
-    os.environ.pop('ANTHROPIC_API_KEY', None)
+    # conftest.py turns the local LLM off, so this exercises the final
+    # fallback rather than a real AI call.
     debit = {'description': 'XYZZY UNKNOWN MERCHANT', 'type': 'debit', 'amount': 10}
     credit = {'description': 'XYZZY UNKNOWN MERCHANT', 'type': 'credit', 'amount': 10}
     categorize_transactions([debit, credit], CATEGORIES, merchant_rules={})

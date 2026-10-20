@@ -6,7 +6,7 @@ These are synthetic, invented data only (Testing Requirements: "no real
 customer data"). Each PDF has a real text layer, written in the same
 plain row format the fallback parser understands (see parsing.py) so the
 full extract -> mask -> parse -> validate pipeline can be exercised without
-an ANTHROPIC_API_KEY configured. In production the AI step (not this
+a local Ollama server running. In production the AI step (not this
 regex fallback) is what would handle each bank's real, varied layout.
 """
 import os
