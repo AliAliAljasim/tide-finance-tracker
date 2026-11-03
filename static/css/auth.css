@@ -1,20 +1,23 @@
 .auth-split { display: flex; min-height: 100vh; }
-.auth-panel { flex: 1; background: var(--ink); color: var(--ground); padding: 56px 72px; display: flex; flex-direction: column; justify-content: space-between; }
-.auth-brand { color: var(--ground); font-size: 28px; }
-.auth-headline { font: 400 56px/1.08 var(--font-display); letter-spacing: -.02em; margin-bottom: 20px; }
-.auth-lede { font-size: 17px; line-height: 1.55; color: #B9BBC2; max-width: 440px; }
-.auth-foot { color: #9A9CA4; font-size: 13px; }
+/* The hero panel is always the darkest stone (in both themes); the form
+   side sits on the regular page surface. */
+.auth-panel { flex: 1; background: var(--stone-900); color: var(--stone-50); padding: 56px 72px; display: flex; flex-direction: column; justify-content: space-between; }
+.auth-brand { color: var(--stone-50); font-size: 28px; padding: 0; }
+.auth-brand:hover { color: var(--stone-50); }
+.auth-headline { font-size: 49px; line-height: 1.1; letter-spacing: -0.025em; margin-bottom: 20px; max-width: 560px; }
+.auth-lede { font-size: 18px; line-height: 1.55; color: var(--stone-300); max-width: 440px; }
+.auth-foot { color: var(--stone-400); font-size: 13px; }
 .auth-main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 48px 24px; }
 .auth-form-wrap { width: 400px; max-width: 100%; }
-.auth-title { font: 600 36px var(--font-display); margin-bottom: 8px; }
-.auth-sub { color: var(--muted); font-size: 16px; margin-bottom: 32px; }
+.auth-title { font-size: 39px; line-height: 1.1; margin-bottom: 12px; }
+.auth-sub { color: var(--text-secondary); font-size: 16px; margin-bottom: 32px; }
 .auth-form { gap: 18px; }
-.auth-submit { padding: 14px 18px; font-size: 15px; margin-top: 10px; }
+.auth-submit { height: 52px; font-size: 16px; margin-top: 10px; }
 .auth-center { text-align: center; }
-.auth-switch { color: var(--muted); margin-top: 20px; }
+.auth-switch { color: var(--text-secondary); margin-top: 20px; }
 
 @media (max-width: 900px) {
   .auth-split { flex-direction: column; }
   .auth-panel { padding: 32px 24px; gap: 24px; }
-  .auth-headline { font-size: 32px; }
+  .auth-headline { font-size: 31px; }
 }

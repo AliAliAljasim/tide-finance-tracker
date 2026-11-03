@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Investing - Finance{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-head">
+        <div>
+            <h1 class="page-title">Investing</h1>
+            <p class="page-sub">TFSA, FHSA, RRSP, RESP and every other investment or savings account. Contribution room and limits stay up to date as you log money in and out.</p>
+        </div>
+        <div class="page-actions">
+            <button type="button" id="addRegisteredBtn" class="btn btn-primary hidden"><i class="icon-plus"></i>Add account</button>
+        </div>
+    </header>
+
+    <div id="registeredEmpty" class="empty-state hidden">
+        <span class="empty-state-icon" aria-hidden="true"><i class="icon-trending-up"></i></span>
+        <p>No investment accounts yet. Add a TFSA, FHSA, RRSP, RESP, RDSP, LIRA, RRIF or a regular non-registered account. For registered accounts, have your contribution room from CRA My Account handy.</p>
+        <button type="button" id="addRegisteredEmptyBtn" class="btn btn-primary"><i class="icon-plus"></i>Add account</button>
+    </div>
+
+    <section id="investSummary" class="card card-lg invest-summary hidden" aria-label="This year at a glance">
+        <div>
+            <div class="label" id="sumContribLabel">Contributed this year</div>
+            <div class="money money-lg" id="sumContrib">&mdash;</div>
+        </div>
+        <div>
+            <div class="label">Registered room left</div>
+            <div class="money money-lg" id="sumRoom">&mdash;</div>
+            <div class="stat-sub" id="sumRoomSub"></div>
+        </div>
+        <div>
+            <div class="label">Accounts</div>
+            <div class="money money-lg not-amount" id="sumCount">&mdash;</div>
+            <div class="stat-sub" id="sumCountSub"></div>
+        </div>
+    </section>
+
+    <div id="registeredGrid">
+        <p class="muted">Loading&hellip;</p>
+    </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+{% endblock %}
+{% block modals %}
+<div id="registeredModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="registeredModalTitle">
+    <div class="modal-box">
+        <h2 class="modal-title" id="registeredModalTitle">Add account</h2>
+        <button type="button" class="icon-btn modal-close" id="registeredModalClose" aria-label="Close"><i class="icon-x"></i></button>
+        <p class="modal-desc" id="registeredModalDesc"></p>
+        <form id="registeredForm" class="stack">
+            <input type="hidden" id="registeredId">
+            <label class="field">
+                <span>Type</span>
+                <select id="registeredType" class="select" required></select>
+            </label>
+            <label class="field">
+                <span>Account name</span>
+                <input type="text" id="registeredName" class="input" required>
+            </label>
+            <label class="field">
+                <span>Institution</span>
+                <input type="text" id="registeredInstitution" class="input" placeholder="e.g. Riverside Bank">
+            </label>
+            <div>
+                <div class="form-row">
+                    <label class="field" id="startingRoomField">
+                        <span id="startingRoomLabel">Starting room</span>
+                        <span class="control"><span class="affix">$</span><input type="number" id="registeredStartingRoom" class="input mono" step="0.01" min="0"><span class="affix">CAD</span></span>
+                    </label>
+                    <label class="field" id="startYearField">
+                        <span id="startYearLabel">As of Jan 1,</span>
+                        <input type="number" id="registeredStartYear" class="input mono" step="1" required>
+                    </label>
+                </div>
+                <p id="startingRoomHelp" class="field-hint" style="margin-top:6px;"></p>
+            </div>
+            <label class="field" id="annualRoomField">
+                <span>New room each year</span>
+                <span class="control"><span class="affix">$</span><input type="number" id="registeredAnnualRoom" class="input mono" step="0.01" min="0" value="0"><span class="affix">CAD</span></span>
+                <span class="field-hint">From your Notice of Assessment: 18% of last year&rsquo;s earned income, up to that year&rsquo;s maximum, minus any pension adjustment. Update it when a new one arrives.</span>
+            </label>
+            <label class="field" id="priorContributionsField">
+                <span id="priorContributionsLabel">Contributions made before that year</span>
+                <span class="control"><span class="affix">$</span><input type="number" id="registeredPriorContributions" class="input mono" step="0.01" min="0" value="0"><span class="affix">CAD</span></span>
+                <span class="field-hint" id="priorContributionsHint"></span>
+            </label>
+            <div id="registeredFormError" class="form-error hidden"></div>
+        </form>
+        <div class="modal-foot">
+            <button type="button" class="btn btn-ghost" id="registeredModalCancel">Cancel</button>
+            <button type="submit" form="registeredForm" class="btn btn-primary">Save account</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/investing_types.js') }}"></script>
+<script src="{{ url_for('static', filename='js/registered.js') }}"></script>
+{% endblock %}

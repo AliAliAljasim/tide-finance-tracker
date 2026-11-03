@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Finance{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-head dash-head">
+        <div>
+            <h1 class="page-title" id="dashGreeting" data-name="{{ (session.user_name or '').split(' ')[0] }}">Welcome back</h1>
+            <p class="page-sub" id="dashSub">Your money at a glance.</p>
+        </div>
+        <div class="page-actions">
+            <a href="/upload" class="btn btn-primary"><i class="icon-file-up"></i>Upload statement</a>
+        </div>
+    </header>
+
+    <div id="reviewNotice" class="notice hidden" role="status">
+        <span class="notice-icon" aria-hidden="true"><i class="icon-inbox"></i></span>
+        <p id="reviewNoticeText"></p>
+        <a href="/upload" id="reviewNoticeLink" class="btn btn-outline btn-sm">Review</a>
+    </div>
+
+    <div class="dash">
+        <section class="card card-lg" aria-labelledby="netLabel">
+            <div class="net-head">
+                <div>
+                    <div class="label" id="netLabel">Net worth</div>
+                    <div id="netValue" class="money money-hero">&mdash;</div>
+                </div>
+                <span id="flowBadge" class="badge badge-dot hidden"></span>
+            </div>
+            <div id="netSplit" class="net-split hidden" aria-hidden="true"><span class="assets"></span><span class="debts"></span></div>
+            <div id="netLegend" class="net-legend hidden">
+                <span><i class="swatch assets"></i>Assets <b id="assetsValue"></b></span>
+                <span><i class="swatch debts"></i>Debts <b id="debtsValue"></b></span>
+            </div>
+        </section>
+
+        <div class="dash-grid">
+            <div class="dash-col">
+                <section class="card card-flush dash-accounts" aria-labelledby="accountsTitle">
+                    <div class="dash-card-head">
+                        <h2 class="dash-card-title" id="accountsTitle">Accounts</h2>
+                        <a href="/accounts" class="dash-card-meta" id="accountsMeta"></a>
+                    </div>
+                    <div id="accountsList"><p class="list-empty dash-empty">Loading&hellip;</p></div>
+                </section>
+                <section class="card card-flush dash-recent" aria-labelledby="recentTitle">
+                    <div class="dash-card-head">
+                        <h2 class="dash-card-title" id="recentTitle">Recent transactions</h2>
+                        <a href="/summary" class="dash-card-meta">Summary</a>
+                    </div>
+                    <div id="recentList"><p class="list-empty dash-empty">Loading&hellip;</p></div>
+                </section>
+            </div>
+            <div class="dash-col">
+                <section class="card dash-budgets" aria-labelledby="budgetsTitle">
+                    <div class="dash-card-head inset">
+                        <h2 class="dash-card-title" id="budgetsTitle">Budgets</h2>
+                        <a href="/budgets" class="dash-card-meta tabular" id="budgetsMeta"></a>
+                    </div>
+                    <div id="budgetsList" class="mini-stack budget-stack"><p class="dash-empty">Loading&hellip;</p></div>
+                </section>
+                <section class="card dash-registered" aria-labelledby="registeredTitle">
+                    <div class="dash-card-head inset">
+                        <h2 class="dash-card-title" id="registeredTitle">Investing</h2>
+                        <a href="/investing" class="dash-card-meta">All accounts</a>
+                    </div>
+                    <div id="registeredList" class="mini-stack budget-stack"><p class="dash-empty">Loading&hellip;</p></div>
+                </section>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/investing_types.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Accounts - Finance{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-head">
+        <div>
+            <h1 class="page-title">Accounts</h1>
+            <p class="page-sub">Your chequing, savings and credit card accounts, with balances from confirmed transactions.</p>
+        </div>
+        <div class="page-actions">
+            <a href="/upload" class="btn btn-outline"><i class="icon-file-up"></i>Upload statement</a>
+            <button type="button" id="addAccountBtn" class="btn btn-accent"><i class="icon-plus"></i>Add account</button>
+        </div>
+    </header>
+
+    <div id="netCard" class="card card-lg hidden" style="margin-bottom:24px;">
+        <div class="label">Net across accounts</div>
+        <div id="netValue" class="money money-xl" style="display:block;margin-top:12px;"></div>
+    </div>
+
+    <div id="accountsList" class="card card-flush">
+        <p class="list-empty">Loading&hellip;</p>
+    </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+{% endblock %}
+{% block modals %}
+<div id="accountModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="accountModalTitle">
+    <div class="modal-box">
+        <h2 class="modal-title" id="accountModalTitle">Add account</h2>
+        <button type="button" class="icon-btn modal-close" id="accountModalClose" aria-label="Close"><i class="icon-x"></i></button>
+        <form id="accountForm" class="modal-body stack">
+            <input type="hidden" id="accountId">
+            <label class="field">
+                <span>Account name</span>
+                <input type="text" id="accountName" class="input" placeholder="e.g. Everyday Chequing" required>
+            </label>
+            <label class="field">
+                <span>Type</span>
+                <select id="accountType" class="select" required>
+                    <option value="chequing">Chequing</option>
+                    <option value="savings">Savings</option>
+                    <option value="credit_card">Credit card</option>
+                </select>
+            </label>
+            <label class="field">
+                <span>Institution</span>
+                <input type="text" id="accountInstitution" class="input" placeholder="e.g. Riverside Bank">
+            </label>
+            <label class="field">
+                <span>Opening balance</span>
+                <span class="control"><span class="affix">$</span><input type="number" id="accountOpeningBalance" class="input mono" step="0.01" value="0"><span class="affix">CAD</span></span>
+                <span class="field-hint">For a credit card, this is the balance owed (not available credit).</span>
+            </label>
+            <div id="accountFormError" class="form-error hidden"></div>
+        </form>
+        <div class="modal-foot">
+            <button type="button" class="btn btn-ghost" id="accountModalCancel">Cancel</button>
+            <button type="submit" form="accountForm" class="btn btn-primary">Save account</button>
+        </div>
+    </div>
+</div>
+
+<div id="deleteConfirmModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="deleteModalTitle">
+    <div class="modal-box">
+        <h2 class="modal-title" id="deleteModalTitle">Delete account?</h2>
+        <button type="button" class="icon-btn modal-close" id="deleteModalClose" aria-label="Close"><i class="icon-x"></i></button>
+        <p class="modal-desc" id="deleteConfirmText"></p>
+        <div class="modal-foot">
+            <button type="button" class="btn btn-ghost" id="deleteModalCancel">Cancel</button>
+            <button type="button" class="btn btn-danger" id="deleteModalConfirm">Delete anyway</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/accounts.js') }}"></script>
+{% endblock %}

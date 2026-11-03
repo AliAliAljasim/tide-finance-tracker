@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Budgets - Finance{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-head">
+        <div>
+            <h1 class="page-title">Budgets</h1>
+            <p class="page-sub">Monthly limits by category, tracked against your confirmed transactions. You&rsquo;ll get an alert at 80% and at 100%.</p>
+        </div>
+        <div class="page-actions">
+            <label class="field"><span>Month</span><input type="month" id="budgetMonth" class="input" data-month-picker data-max="current"></label>
+            <button type="button" id="addBudgetBtn" class="btn btn-accent" style="height:44px;"><i class="icon-plus"></i>Add budget</button>
+        </div>
+    </header>
+
+    <div class="card card-lg" style="margin-bottom:24px;">
+        <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:12px;margin-bottom:16px;">
+            <span class="money money-lg" id="totalRemaining">&mdash;</span>
+            <span class="muted" id="totalCaption"></span>
+        </div>
+        <div class="bar" id="totalBar"><span style="width:0%;"></span></div>
+    </div>
+
+    <div id="budgetAlertsList" class="stack hidden" style="gap:8px;margin-bottom:24px;"></div>
+
+    <div class="card card-flush" id="budgetList">
+        <p class="list-empty">Loading&hellip;</p>
+    </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+{% endblock %}
+{% block modals %}
+<div id="budgetModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="budgetModalTitle">
+    <div class="modal-box">
+        <h2 class="modal-title" id="budgetModalTitle">Add budget</h2>
+        <button type="button" class="icon-btn modal-close" id="budgetModalClose" aria-label="Close"><i class="icon-x"></i></button>
+        <p class="modal-desc">Applies to every month. Limits reset on the 1st.</p>
+        <form id="budgetForm" class="stack">
+            <label class="field">
+                <span>Category</span>
+                <select id="budgetCategory" class="select" required></select>
+            </label>
+            <label class="field">
+                <span>Monthly limit</span>
+                <span class="control"><span class="affix">$</span><input type="number" id="budgetAmount" class="input mono" step="0.01" min="0.01" placeholder="e.g. 400" required><span class="affix">CAD</span></span>
+            </label>
+            <div id="budgetFormError" class="form-error hidden"></div>
+        </form>
+        <div class="modal-foot">
+            <button type="button" class="btn btn-ghost" id="budgetModalCancel">Cancel</button>
+            <button type="submit" form="budgetForm" class="btn btn-primary">Save budget</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/month_picker.js') }}"></script>
+<script src="{{ url_for('static', filename='js/budgets.js') }}"></script>
+{% endblock %}

@@ -1,4 +1,5 @@
 let accounts = [];
+const TYPE_LABELS = { chequing: 'Chequing', savings: 'Savings', credit_card: 'Credit card' };
 
 async function loadAccounts() {
     const res = await fetch('/api/accounts');
@@ -6,7 +7,8 @@ async function loadAccounts() {
     accounts = data.accounts || [];
     const select = document.getElementById('accountSelect');
     select.innerHTML = '<option value="">Select an account&hellip;</option>' +
-        accounts.map(a => `<option value="${a._id}">${escapeHtml(a.name)} (${escapeHtml(a.type)})</option>`).join('');
+        accounts.map(a => `<option value="${a._id}">${escapeHtml(a.name)} (${TYPE_LABELS[a.type] || a.type})</option>`).join('');
+    document.getElementById('noAccountsHint').classList.toggle('hidden', accounts.length > 0);
 }
 
 async function loadStatements() {
@@ -15,18 +17,50 @@ async function loadStatements() {
     const body = document.getElementById('statementsBody');
     const statements = data.statements || [];
     if (statements.length === 0) {
-        body.innerHTML = '<tr><td colspan="4" class="muted">No statements yet.</td></tr>';
+        body.innerHTML = '<p class="list-empty">No statements yet.</p>';
         return;
     }
+    const STATUS_LABEL = { processing: 'Processing', parsed: 'Ready to review', confirmed: 'Confirmed', failed: 'Failed' };
+    const STATUS_TONE = { processing: '', parsed: 'badge-warning', confirmed: 'badge-positive', failed: 'badge-danger' };
     body.innerHTML = statements.map(s => {
         const uploaded = (s.created_at || '').slice(0, 10);
-        const statusPill = `<span class="pill">${escapeHtml(s.status)}</span>`;
         const action = s.status === 'failed'
-            ? '<span class="muted">Failed &mdash; please re-upload</span>'
-            : `<a href="/review/${s._id}" class="link">Review</a>`;
-        return `<tr><td class="mono">${uploaded}</td><td>${escapeHtml(s.account_name)}</td><td>${statusPill}</td><td>${action}</td></tr>`;
+            ? '<span class="row-meta">Please upload it again.</span>'
+            : `<a href="/review/${s._id}" class="btn btn-outline btn-sm">Review</a>`;
+        return `
+        <div class="list-row compact">
+            <span class="row-icon" aria-hidden="true"><i class="icon-file-text"></i></span>
+            <span class="row-main">
+                <span class="row-title">${escapeHtml(s.account_name)}</span>
+                <span class="row-meta mono">Uploaded ${uploaded}</span>
+            </span>
+            <span class="badge badge-dot ${STATUS_TONE[s.status] || ''}">${STATUS_LABEL[s.status] || escapeHtml(s.status)}</span>
+            ${action}
+        </div>`;
     }).join('');
 }
+
+// ── Dropzone ────────────────────────────────────────────────────────────
+
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('statementFile');
+
+function showChosenFile() {
+    const file = fileInput.files[0];
+    document.getElementById('dropzoneTitle').textContent = file ? file.name : 'Drop a statement here, or choose a file';
+}
+
+fileInput.addEventListener('change', showChosenFile);
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('over'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('over'));
+dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('over');
+    if (e.dataTransfer.files.length) {
+        fileInput.files = e.dataTransfer.files;
+        showChosenFile();
+    }
+});
 
 function escapeHtml(str) {
     const div = document.createElement('div');
@@ -34,24 +68,19 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 
-document.getElementById('toggleNewAccount').addEventListener('click', function () {
-    const fields = document.getElementById('newAccountFields');
-    const select = document.getElementById('accountSelect');
-    const show = fields.classList.contains('hidden');
-    fields.classList.toggle('hidden', !show);
-    this.textContent = show ? '− Use an existing account' : '+ Add a new account';
-    if (show) select.value = '';
-});
-
 document.getElementById('uploadForm').addEventListener('submit', async function (e) {
     e.preventDefault();
     const errEl = document.getElementById('uploadError');
     errEl.classList.add('hidden');
 
-    let accountId = document.getElementById('accountSelect').value;
-    const newName = document.getElementById('newAccountName').value.trim();
-    const fileInput = document.getElementById('statementFile');
+    const accountId = document.getElementById('accountSelect').value;
     const file = fileInput.files[0];
+
+    if (!accountId) {
+        errEl.textContent = 'Choose an account for this statement.';
+        errEl.classList.remove('hidden');
+        return;
+    }
 
     if (!file) {
         errEl.textContent = 'Choose a file to upload.';
@@ -73,18 +102,6 @@ document.getElementById('uploadForm').addEventListener('submit', async function 
 
     document.getElementById('loadingOverlay').classList.remove('hidden');
     try {
-        if (!accountId) {
-            if (!newName) throw new Error('Choose an account, or enter a name for a new one.');
-            const accRes = await fetch('/api/accounts', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: newName, type: document.getElementById('newAccountType').value }),
-            });
-            const accData = await accRes.json();
-            if (accData.error) throw new Error(accData.error);
-            accountId = accData.account._id;
-        }
-
         const formData = new FormData();
         formData.append('account_id', accountId);
         formData.append('period_start', document.getElementById('periodStart').value);

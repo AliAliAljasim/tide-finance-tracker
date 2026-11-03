@@ -15,14 +15,13 @@ nothing saved) if it isn't, rather than silently skipping it. In production
 pytesseract + the tesseract-ocr system package (or a hosted OCR API) would be
 installed alongside the app.
 
-AI note: when ANTHROPIC_API_KEY is set, transactions are extracted by calling
-the Anthropic API with a fixed tool-use JSON schema. Without a key configured
-(e.g. running this scaffold locally without credentials), a small deterministic
-parser stands in so the upload -> review -> confirm flow can still be demoed
-end-to-end; it is NOT the AI pipeline and is clearly separated below.
+AI note: transactions are extracted by a local LLM served by Ollama (see
+llm.py), constrained to a fixed JSON schema. When no Ollama server is
+configured or reachable, a small deterministic parser stands in so the
+upload -> review -> confirm flow can still be demoed end-to-end; it is NOT
+the AI pipeline and is clearly separated below.
 """
 import json
-import os
 import re
 from datetime import datetime
 
@@ -41,12 +40,7 @@ try:
 except ImportError:
     pytesseract = None
 
-try:
-    import anthropic
-except ImportError:
-    anthropic = None
-
-ANTHROPIC_MODEL = os.environ.get('ANTHROPIC_MODEL', 'claude-sonnet-5')
+import llm
 
 # Matches long digit runs (8+, with optional spaces/dashes) that look like
 # account or card numbers, e.g. "1234 5678 9012" or "123456789012".
@@ -108,41 +102,38 @@ def _ocr_pdf(file_path):
 
 
 TRANSACTION_SCHEMA = {
-    'name': 'record_transactions',
-    'description': 'Record every transaction found in a bank statement.',
-    'input_schema': {
-        'type': 'object',
-        'properties': {
-            'period_start': {'type': ['string', 'null'], 'description': 'Statement period start, YYYY-MM-DD'},
-            'period_end': {'type': ['string', 'null'], 'description': 'Statement period end, YYYY-MM-DD'},
-            'opening_balance': {'type': ['number', 'null']},
-            'closing_balance': {'type': ['number', 'null']},
-            'transactions': {
-                'type': 'array',
-                'items': {
-                    'type': 'object',
-                    'properties': {
-                        'date': {'type': 'string', 'description': 'YYYY-MM-DD'},
-                        'description': {'type': 'string'},
-                        'amount': {'type': 'number', 'description': 'Always positive'},
-                        'type': {'type': 'string', 'enum': ['debit', 'credit']},
-                        'balance': {'type': ['number', 'null'], 'description': 'Running balance if printed on the statement'},
-                    },
-                    'required': ['date', 'description', 'amount', 'type'],
+    'type': 'object',
+    'properties': {
+        'period_start': {'type': ['string', 'null'], 'description': 'Statement period start, YYYY-MM-DD'},
+        'period_end': {'type': ['string', 'null'], 'description': 'Statement period end, YYYY-MM-DD'},
+        'opening_balance': {'type': ['number', 'null']},
+        'closing_balance': {'type': ['number', 'null']},
+        'transactions': {
+            'type': 'array',
+            'items': {
+                'type': 'object',
+                'properties': {
+                    'date': {'type': 'string', 'description': 'YYYY-MM-DD'},
+                    'description': {'type': 'string'},
+                    'amount': {'type': 'number', 'description': 'Always positive'},
+                    'type': {'type': 'string', 'enum': ['debit', 'credit']},
+                    'balance': {'type': ['number', 'null'], 'description': 'Running balance if printed on the statement'},
                 },
+                'required': ['date', 'description', 'amount', 'type'],
             },
         },
-        'required': ['transactions'],
     },
+    'required': ['transactions'],
 }
 
 FIXED_PROMPT = (
     "You are extracting transactions from a bank statement's text. Account "
-    "numbers have already been masked. Call record_transactions with every "
+    "numbers have already been masked. Reply with JSON listing every "
     "transaction you find, one record per transaction, plus the statement's "
     "period and opening/closing balance if they are printed on the "
-    "statement. Amounts are always positive; use type to say debit or "
-    "credit. Do not invent transactions that are not in the text."
+    "statement. Amounts are always positive; use type to say debit (money "
+    "out, usually printed with a minus sign) or credit (money in). Do not "
+    "invent transactions that are not in the text."
 )
 
 
@@ -150,34 +141,50 @@ class ParsingError(Exception):
     pass
 
 
-def parse_statement_text(masked_text):
-    """Returns {period_start, period_end, opening_balance, closing_balance, transactions}."""
-    api_key = os.environ.get('ANTHROPIC_API_KEY')
-    if api_key and anthropic is not None:
-        return _parse_with_llm(masked_text, api_key)
-    return _parse_with_fallback(masked_text)
+def parse_statement_text(masked_text, owed=False):
+    """Returns {period_start, period_end, opening_balance, closing_balance, transactions}.
 
-
-def _parse_with_llm(masked_text, api_key):
-    client = anthropic.Anthropic(api_key=api_key)
+    `owed` is True for credit cards, whose printed balance is the amount owed:
+    it goes *up* on a purchase, the opposite of a bank account."""
+    if not masked_text.strip():
+        # Never hand the model an empty prompt - it will invent transactions.
+        raise ParsingError('Could not read any text from this statement.')
     try:
-        response = client.messages.create(
-            model=ANTHROPIC_MODEL,
-            max_tokens=4096,
-            tools=[TRANSACTION_SCHEMA],
-            tool_choice={'type': 'tool', 'name': 'record_transactions'},
-            messages=[{'role': 'user', 'content': FIXED_PROMPT + '\n\nStatement text:\n' + masked_text}],
-        )
-    except Exception as e:
+        parsed = llm.structured_chat(FIXED_PROMPT + '\n\nStatement text:\n' + masked_text,
+                                     TRANSACTION_SCHEMA)
+    except llm.LLMUnavailable:
+        return _parse_with_fallback(masked_text)
+    except llm.LLMError as e:
         raise ParsingError(f'The AI parsing service failed: {e}')
+    if not isinstance(parsed, dict) or not isinstance(parsed.get('transactions'), list):
+        raise ParsingError('The AI service did not return any transactions.')
+    _normalize_amounts(parsed, owed)
+    return parsed
 
-    for block in response.content:
-        if block.type == 'tool_use':
-            return block.input
-    raise ParsingError('The AI service did not return any transactions.')
+
+def _normalize_amounts(parsed, owed=False):
+    """Small local models often get the sign/type backwards, so derive them
+    from the numbers instead: amounts are made positive, and debit vs credit
+    comes from the running balance moving down/up (or the sign if no balance
+    is printed). On a credit card (`owed`) the balance rising means a charge."""
+    prev_balance = parsed.get('opening_balance')
+    for tx in parsed['transactions']:
+        try:
+            amount = float(tx.get('amount'))
+        except (TypeError, ValueError):
+            continue
+        balance = tx.get('balance')
+        if isinstance(balance, (int, float)) and isinstance(prev_balance, (int, float)) and balance != prev_balance:
+            went_up = balance > prev_balance
+            tx['type'] = ('debit' if went_up else 'credit') if owed else ('credit' if went_up else 'debit')
+        elif amount < 0:
+            tx['type'] = 'debit'
+        tx['amount'] = abs(amount)
+        if isinstance(balance, (int, float)):
+            prev_balance = balance
 
 
-# ── Fallback parser (used only when ANTHROPIC_API_KEY is not configured) ──
+# ── Fallback parser (used only when no Ollama server is available) ──
 #
 # Expects lines like:
 #   Period: 2026-08-01 to 2026-08-31
@@ -230,8 +237,9 @@ def _parse_with_fallback(masked_text):
 
 # ── Validation (spec step 6) ──────────────────────────────────────────────
 
-def validate_transactions(transactions, opening_balance, closing_balance, period_start, period_end):
-    """Flags rows that fail balance or date-range checks. Returns (rows, balance_ok)."""
+def validate_transactions(transactions, opening_balance, closing_balance, period_start, period_end, owed=False):
+    """Flags rows that fail balance or date-range checks. Returns (rows, balance_ok).
+    `owed`: the balance is an amount owed (credit card), so charges raise it."""
     # Balance math follows the statement's own posting order (transactions
     # aren't necessarily in calendar-date order, e.g. a backdated reversal);
     # callers that want date order for display sort separately.
@@ -248,6 +256,8 @@ def validate_transactions(transactions, opening_balance, closing_balance, period
 
         amount = float(tx.get('amount') or 0)
         signed = amount if tx.get('type') == 'credit' else -amount
+        if owed:
+            signed = -signed
         if running is not None:
             expected = round(running + signed, 2)
             stated = tx.get('balance')

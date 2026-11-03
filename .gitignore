@@ -9,5 +9,7 @@ instance/
 .claude/
 .venv/
 CLAUDE.md
-Week3_Sprint1_Requirements.md
 Sprint2.md
+Week3_Sprint1_Requirements.md
+.app.pid
+app.log

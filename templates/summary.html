@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Summary - Finance{% endblock %}
+{% block content %}
+<div class="page viz-root">
+    <header class="page-head">
+        <div>
+            <h1 class="page-title">Summary</h1>
+            <p class="page-sub">Where your money went, built from the statements you&rsquo;ve confirmed.</p>
+        </div>
+        <div class="page-actions">
+            <label class="field" style="min-width:220px;">
+                <span>Account</span>
+                <select id="accountFilter" class="select">
+                    <option value="all">All accounts</option>
+                </select>
+            </label>
+        </div>
+    </header>
+
+    <div class="grid-stats" id="statCards">
+        <div class="card">
+            <div class="label">Income this month</div>
+            <div class="stat-value pos" id="cardIncome">&mdash;</div>
+        </div>
+        <div class="card">
+            <div class="label">Spending this month</div>
+            <div class="stat-value" id="cardExpenses">&mdash;</div>
+        </div>
+        <div class="card">
+            <div class="label">Net this month</div>
+            <div class="stat-value" id="cardNet">&mdash;</div>
+        </div>
+    </div>
+
+    <div class="card card-lg" style="margin-bottom:24px;">
+        <div class="card-head">
+            <h2 class="card-title">Income vs. spending</h2>
+            <div class="page-actions">
+                <label class="field"><span>From</span><input type="month" id="monthlyFrom" class="input"></label>
+                <label class="field"><span>To</span><input type="month" id="monthlyTo" class="input"></label>
+                <button type="button" class="btn btn-ghost" id="monthlyTableToggle">Table view</button>
+            </div>
+        </div>
+        <div class="viz-legend">
+            <span><span class="viz-swatch" style="background:var(--series-income);"></span>Income</span>
+            <span><span class="viz-swatch" style="background:var(--series-expense);"></span>Spending</span>
+        </div>
+        <div id="monthlyChart"></div>
+        <table class="table viz-table" id="monthlyTable">
+            <thead><tr><th>Month</th><th class="num">Income</th><th class="num">Spending</th><th class="num">Net</th></tr></thead>
+            <tbody id="monthlyTableBody"></tbody>
+        </table>
+    </div>
+
+    <div class="card card-lg">
+        <div class="card-head">
+            <div>
+                <h2 class="card-title">Spending by category</h2>
+                <p class="card-sub">Select a category to see its transactions.</p>
+            </div>
+            <div class="page-actions">
+                <label class="field"><span>Month</span><input type="month" id="categoryMonth" class="input"></label>
+            </div>
+        </div>
+        <div id="categoryChart" class="cat-meters"></div>
+
+        <div id="categoryDrilldown" class="drilldown hidden">
+            <h3 id="drilldownTitle"></h3>
+            <div class="table-wrap">
+                <table class="table" id="drilldownTable">
+                    <thead><tr><th>Date</th><th>Description</th><th class="num">Amount</th></tr></thead>
+                    <tbody id="drilldownBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="vizTooltip" class="viz-tooltip"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/summary.js') }}"></script>
+{% endblock %}

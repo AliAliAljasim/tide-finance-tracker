@@ -1,41 +1,171 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en"{% include "_html_attrs.html" %}>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Statement Parser{% endblock %}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap" rel="stylesheet">
+    <title>{% block title %}Finance{% endblock %}</title>
+    <script>
+        // Collapsed sidebar is a per-device preference; apply it before first paint.
+        try { if (localStorage.getItem('finance-sidebar') === 'collapsed') document.documentElement.classList.add('sidebar-collapsed'); } catch (e) {}
+    </script>
+    {% include "_fonts.html" %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/icons.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/assistant.css') }}">
     {% block head %}{% endblock %}
 </head>
 <body>
-    <header class="site-header">
-        <a href="/" class="brand">Statement Parser</a>
-        <nav class="site-nav" aria-label="Main">
-            {% set p = request.path %}
-            <a href="/upload" class="{{ 'active' if p == '/upload' else '' }}">Upload statement</a>
-        </nav>
-        <div class="header-right">
-            {% block header_actions %}{% endblock %}
-            <details class="user-menu">
-                <summary aria-label="Account menu">{{ (session.user_email or 'A')[:1] | upper }}</summary>
-                <div class="user-menu-list">
-                    <a href="/logout" class="danger">Log out</a>
-                </div>
-            </details>
-        </div>
-    </header>
+    <div class="app-shell">
+        <aside class="sidebar" id="sidebar">
+            <div class="side-top">
+                <a href="/" class="brand"><span class="brand-full">Finance</span></a>
+                <button type="button" class="icon-btn icon-btn-sm side-toggle" id="sideToggle" aria-controls="sidebar" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar">
+                    <i class="icon-panel-left-close" aria-hidden="true"></i>
+                </button>
+            </div>
+            <nav class="side-nav" aria-label="Main">
+                {% set p = request.path %}
+                <a href="/dashboard" title="Dashboard" class="{{ 'active' if p == '/dashboard' else '' }}"><i class="icon-layout-dashboard" aria-hidden="true"></i><span class="nav-label">Dashboard</span></a>
+                <a href="/accounts" title="Accounts" class="{{ 'active' if p == '/accounts' or p.startswith('/accounts/') else '' }}"><i class="icon-layers" aria-hidden="true"></i><span class="nav-label">Accounts</span></a>
+                <a href="/upload" title="Upload statement" class="{{ 'active' if p == '/upload' or p.startswith('/review/') else '' }}"><i class="icon-file-up" aria-hidden="true"></i><span class="nav-label">Upload statement</span></a>
+                <a href="/summary" title="Summary" class="{{ 'active' if p == '/summary' else '' }}"><i class="icon-chart-pie" aria-hidden="true"></i><span class="nav-label">Summary</span></a>
+                <a href="/budgets" title="Budgets" class="{{ 'active' if p == '/budgets' else '' }}"><i class="icon-target" aria-hidden="true"></i><span class="nav-label">Budgets</span><span id="budgetNavBadge" class="nav-badge hidden"></span></a>
+                <a href="/investing" title="Investing" class="{{ 'active' if p == '/investing' or p.startswith('/investing/') else '' }}"><i class="icon-trending-up" aria-hidden="true"></i><span class="nav-label">Investing</span></a>
+            </nav>
+            {% set display_name = session.user_name or session.user_email or 'Account' %}
+            <button type="button" class="side-user" id="userMenuBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="userMenu" title="{{ display_name }}">
+                <span class="avatar" aria-hidden="true">{{ display_name[:1] | upper }}</span>
+                <span class="side-user-name">{{ display_name }}</span>
+                <i class="icon-chevrons-up-down side-user-chev" aria-hidden="true"></i>
+            </button>
+        </aside>
 
-    {% block content %}{% endblock %}
+        <main class="app-main">
+            <div class="app-content">
+                <div id="budgetAlertStrip" class="alert-strip hidden" role="status"></div>
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
 
     <div id="loadingOverlay" class="loading-overlay hidden">
         <div class="spinner"></div>
-        <p>Loading...</p>
+        <p>Loading&hellip;</p>
     </div>
 
+    <button type="button" class="assist-fab" id="assistFab" aria-haspopup="dialog" aria-controls="assistPanel" aria-expanded="false">
+        <i class="icon-sparkles" aria-hidden="true"></i>Ask assistant
+    </button>
+    <section class="assist-panel" id="assistPanel" role="dialog" aria-labelledby="assistTitle" hidden>
+        <header class="assist-head">
+            <span class="assist-mark" aria-hidden="true"><i class="icon-sparkles"></i></span>
+            <div class="assist-head-text">
+                <h2 class="assist-title" id="assistTitle">Assistant</h2>
+                <p class="assist-sub">Knows your parsed statements</p>
+            </div>
+            <button type="button" class="icon-btn assist-new hidden" id="assistNew" aria-label="New conversation" title="New conversation"><i class="icon-rotate-ccw"></i></button>
+            <button type="button" class="icon-btn" id="assistClose" aria-label="Close assistant"><i class="icon-x"></i></button>
+        </header>
+        <div class="assist-body" id="assistBody" aria-live="polite">
+            <div class="assist-empty" id="assistEmpty">
+                <p class="assist-intro">Ask about your accounts, spending or investing room, or have me add an account.</p>
+                <div class="assist-chips">
+                    <button type="button" class="assist-chip" data-ask="How much did I spend on dining last month?">How much did I spend on dining last month?</button>
+                    <button type="button" class="assist-chip" data-ask="Add my Questrade TFSA with $7,000 of room">Add my Questrade TFSA with $7,000 of room</button>
+                    <button type="button" class="assist-chip" data-ask="Am I on track with my budgets?">Am I on track with my budgets?</button>
+                    <button type="button" class="assist-chip" data-ask="What is my FHSA room this year?">What is my FHSA room this year?</button>
+                </div>
+            </div>
+            <div class="assist-thread" id="assistThread"></div>
+        </div>
+        <form class="assist-compose" id="assistForm">
+            <label class="visually-hidden" for="assistInput">Message the assistant</label>
+            <textarea id="assistInput" class="assist-input" rows="2" placeholder="Ask anything about your money" maxlength="2000"></textarea>
+            <button type="submit" class="assist-send" id="assistSend" aria-label="Send" disabled><i class="icon-arrow-up"></i></button>
+        </form>
+    </section>
+
+    <div class="user-menu" id="userMenu" role="menu" aria-labelledby="userMenuBtn" hidden>
+        <div class="user-menu-head">
+            <span class="avatar" aria-hidden="true">{{ display_name[:1] | upper }}</span>
+            <span class="user-menu-who">
+                <strong>{{ session.user_name or 'Your account' }}</strong>
+                <span>{{ session.user_email }}</span>
+            </span>
+        </div>
+        <div class="user-menu-section">
+            <div class="label" id="themeLabel">Appearance</div>
+            <div class="theme-switch" role="radiogroup" aria-labelledby="themeLabel">
+                {% for value, icon, label in [('light', 'sun', 'Light'), ('dark', 'moon', 'Dark'), ('system', 'monitor', 'System')] %}
+                <button type="button" role="radio" data-theme-choice="{{ value }}" aria-checked="{{ 'true' if prefs.theme == value else 'false' }}"><i class="icon-{{ icon }}" aria-hidden="true"></i>{{ label }}</button>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="user-menu-section">
+            <button type="button" class="menu-item" role="menuitemcheckbox" id="hideAmountsToggle" aria-checked="{{ 'true' if prefs.hide_amounts else 'false' }}">
+                <i class="icon-eye-off" aria-hidden="true"></i><span>Hide amounts</span><span class="switch" aria-hidden="true"><span></span></span>
+            </button>
+            <button type="button" class="menu-item" role="menuitem" data-open-dialog="profileDialog"><i class="icon-user-round" aria-hidden="true"></i><span>Edit name</span></button>
+            <button type="button" class="menu-item" role="menuitem" data-open-dialog="passwordDialog"><i class="icon-key-round" aria-hidden="true"></i><span>Change password</span></button>
+            <a href="/welcome" class="menu-item" role="menuitem"><i class="icon-list-checks" aria-hidden="true"></i><span>Run setup again</span></a>
+        </div>
+        <div class="user-menu-section">
+            <a href="/logout" class="menu-item" role="menuitem"><i class="icon-log-out" aria-hidden="true"></i><span>Log out</span></a>
+        </div>
+    </div>
+
+    <div id="profileDialog" class="modal" role="dialog" aria-modal="true" aria-labelledby="profileDialogTitle">
+        <div class="modal-box">
+            <h2 class="modal-title" id="profileDialogTitle">Edit name</h2>
+            <button type="button" class="icon-btn modal-close" data-close-dialog aria-label="Close"><i class="icon-x"></i></button>
+            <p class="modal-desc">Shown in the sidebar and when the dashboard greets you.</p>
+            <form id="profileForm" class="stack">
+                <label class="field">
+                    <span>Name</span>
+                    <input type="text" id="profileName" class="input" maxlength="60" autocomplete="name" value="{{ session.user_name or '' }}" required>
+                </label>
+                <div id="profileError" class="form-error hidden"></div>
+            </form>
+            <div class="modal-foot">
+                <button type="button" class="btn btn-ghost" data-close-dialog>Cancel</button>
+                <button type="submit" form="profileForm" class="btn btn-primary">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="passwordDialog" class="modal" role="dialog" aria-modal="true" aria-labelledby="passwordDialogTitle">
+        <div class="modal-box">
+            <h2 class="modal-title" id="passwordDialogTitle">Change password</h2>
+            <button type="button" class="icon-btn modal-close" data-close-dialog aria-label="Close"><i class="icon-x"></i></button>
+            <form id="passwordForm" class="stack modal-body">
+                <label class="field">
+                    <span>Current password</span>
+                    <input type="password" id="currentPassword" class="input" autocomplete="current-password" required>
+                </label>
+                <label class="field">
+                    <span>New password</span>
+                    <input type="password" id="newPassword" class="input" autocomplete="new-password" minlength="8" required>
+                    <span class="field-hint">At least 8 characters.</span>
+                </label>
+                <label class="field">
+                    <span>Confirm new password</span>
+                    <input type="password" id="confirmNewPassword" class="input" autocomplete="new-password" minlength="8" required>
+                </label>
+                <div id="passwordError" class="form-error hidden"></div>
+            </form>
+            <div class="modal-foot">
+                <button type="button" class="btn btn-ghost" data-close-dialog>Cancel</button>
+                <button type="submit" form="passwordForm" class="btn btn-primary">Update password</button>
+            </div>
+        </div>
+    </div>
+    <div id="shellToast" class="toast hidden" role="status"></div>
+
     {% block modals %}{% endblock %}
+    <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/shell.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/budget_alerts.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/assistant.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>
