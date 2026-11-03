@@ -1,22 +1,22 @@
 {% extends "base.html" %}
-{% block title %}Account - Statement Parser{% endblock %}
+{% block title %}Account - Finance{% endblock %}
 {% block content %}
 <div class="page" data-account-id="{{ account_id }}">
-    <div class="page-head">
+    <header class="page-head">
         <div>
-            <a href="/accounts" class="link">&larr; All accounts</a>
-            <h1 class="page-title" id="accountName" style="margin-top:8px;">Loading&hellip;</h1>
+            <a href="/accounts" class="back-link"><i class="icon-arrow-left"></i>All accounts</a>
+            <h1 class="page-title" id="accountName">Loading&hellip;</h1>
             <p class="page-sub" id="accountMeta"></p>
         </div>
         <div class="page-actions">
-            <div class="card" style="padding:16px 20px;text-align:right;">
+            <div class="card" style="padding:20px 24px;text-align:right;">
                 <div class="label" id="balanceLabel">Current balance</div>
                 <div class="stat-value" id="accountBalance">&mdash;</div>
             </div>
         </div>
-    </div>
+    </header>
 
-    <div class="card table-card" style="padding:0;overflow-x:auto;">
+    <div class="card card-flush table-wrap">
         <table class="table">
             <thead>
                 <tr><th>Date</th><th>Description</th><th>Category</th><th class="num">Amount</th><th>Type</th><th class="num">Balance</th></tr>

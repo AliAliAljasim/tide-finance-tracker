@@ -27,7 +27,7 @@ document.getElementById('signupForm').addEventListener('submit', async function 
         });
         const data = await response.json();
         if (data.error) throw new Error(data.error);
-        window.location.href = '/upload';
+        window.location.href = '/welcome';
     } catch (error) {
         errEl.textContent = error.message;
         errEl.classList.remove('hidden');

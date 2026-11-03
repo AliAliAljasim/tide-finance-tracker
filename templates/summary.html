@@ -1,114 +1,77 @@
 {% extends "base.html" %}
-{% block title %}Summary - Statement Parser{% endblock %}
-{% block head %}
-<style>
-  .viz-root {
-    color-scheme: dark;
-    --surface-1: var(--surface);
-    --text-primary: var(--ink);
-    --text-secondary: var(--muted);
-    --text-muted: var(--muted);
-    --grid-line: var(--line);
-    --axis-line: var(--border-input);
-    /* Same ledger convention as everywhere else: credits in ledger-ink
-       blue, debits in red — no separate green for "positive." */
-    --series-income: var(--pos);
-    --series-expense: var(--neg);
-    /* Dark-surface steps of the dataviz skill's validated categorical set. */
-    --cat-1: #3987e5; --cat-2: #d95926; --cat-3: #199e70; --cat-4: #c98500;
-    --cat-5: #d55181; --cat-6: #008300; --cat-7: #9085e9; --cat-other: var(--muted);
-  }
-  .viz-card { background: var(--surface-1); }
-  .viz-legend { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
-  .viz-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
-  .viz-tooltip {
-    position: fixed; pointer-events: none; background: var(--ink); color: var(--ground);
-    font-size: 12px; padding: 6px 10px; border-radius: 8px; z-index: 200; display: none;
-    white-space: nowrap; transform: translate(-50%, calc(-100% - 10px));
-  }
-  .viz-bar { cursor: default; }
-  .viz-bar.clickable { cursor: pointer; }
-  .viz-table { display: none; width: 100%; margin-top: 12px; }
-  .viz-table.show { display: table; }
-</style>
-{% endblock %}
+{% block title %}Summary - Finance{% endblock %}
 {% block content %}
 <div class="page viz-root">
-    <div class="page-head">
+    <header class="page-head">
         <div>
             <h1 class="page-title">Summary</h1>
-            <p class="page-sub">Income, expenses and spending by category from your confirmed transactions.</p>
+            <p class="page-sub">Where your money went, built from the statements you&rsquo;ve confirmed.</p>
         </div>
         <div class="page-actions">
-            <label class="field" style="min-width:200px;">
+            <label class="field" style="min-width:220px;">
                 <span>Account</span>
                 <select id="accountFilter" class="select">
                     <option value="all">All accounts</option>
                 </select>
             </label>
         </div>
-    </div>
+    </header>
 
-    <div class="row" id="statCards" style="gap:20px;margin-bottom:28px;">
-        <div class="card card-lg" style="flex:1;">
-            <div class="label">This month's income</div>
+    <div class="grid-stats" id="statCards">
+        <div class="card">
+            <div class="label">Income this month</div>
             <div class="stat-value pos" id="cardIncome">&mdash;</div>
         </div>
-        <div class="card card-lg" style="flex:1;">
-            <div class="label">This month's expenses</div>
-            <div class="stat-value neg" id="cardExpenses">&mdash;</div>
+        <div class="card">
+            <div class="label">Spending this month</div>
+            <div class="stat-value" id="cardExpenses">&mdash;</div>
         </div>
-        <div class="card card-lg" style="flex:1;">
-            <div class="label">This month's net</div>
+        <div class="card">
+            <div class="label">Net this month</div>
             <div class="stat-value" id="cardNet">&mdash;</div>
         </div>
     </div>
 
-    <div class="card card-lg viz-card table-card" style="margin-bottom:28px;">
-        <div class="page-head" style="margin-bottom:16px;">
-            <div>
-                <h2 style="font:700 17px var(--font-display);">Income vs. expenses</h2>
-            </div>
+    <div class="card card-lg" style="margin-bottom:24px;">
+        <div class="card-head">
+            <h2 class="card-title">Income vs. spending</h2>
             <div class="page-actions">
                 <label class="field"><span>From</span><input type="month" id="monthlyFrom" class="input"></label>
                 <label class="field"><span>To</span><input type="month" id="monthlyTo" class="input"></label>
-                <button type="button" class="btn btn-ghost btn-sm" id="monthlyTableToggle">Table view</button>
+                <button type="button" class="btn btn-ghost" id="monthlyTableToggle">Table view</button>
             </div>
         </div>
-        <div class="viz-legend" style="margin-bottom:12px;">
+        <div class="viz-legend">
             <span><span class="viz-swatch" style="background:var(--series-income);"></span>Income</span>
-            <span><span class="viz-swatch" style="background:var(--series-expense);"></span>Expenses</span>
+            <span><span class="viz-swatch" style="background:var(--series-expense);"></span>Spending</span>
         </div>
         <div id="monthlyChart"></div>
         <table class="table viz-table" id="monthlyTable">
-            <thead><tr><th>Month</th><th class="num">Income</th><th class="num">Expenses</th><th class="num">Net</th></tr></thead>
+            <thead><tr><th>Month</th><th class="num">Income</th><th class="num">Spending</th><th class="num">Net</th></tr></thead>
             <tbody id="monthlyTableBody"></tbody>
         </table>
     </div>
 
-    <div class="card card-lg viz-card table-card">
-        <div class="page-head" style="margin-bottom:16px;">
+    <div class="card card-lg">
+        <div class="card-head">
             <div>
-                <h2 style="font:700 17px var(--font-display);">Spending by category</h2>
-                <p class="page-sub" style="font-size:13px;">Click a bar to see its transactions.</p>
+                <h2 class="card-title">Spending by category</h2>
+                <p class="card-sub">Select a category to see its transactions.</p>
             </div>
             <div class="page-actions">
                 <label class="field"><span>Month</span><input type="month" id="categoryMonth" class="input"></label>
-                <button type="button" class="btn btn-ghost btn-sm" id="categoryTableToggle">Table view</button>
             </div>
         </div>
-        <div id="categoryChart"></div>
-        <table class="table viz-table" id="categoryTable">
-            <thead><tr><th>Category</th><th class="num">Total</th></tr></thead>
-            <tbody id="categoryTableBody"></tbody>
-        </table>
+        <div id="categoryChart" class="cat-meters"></div>
 
-        <div id="categoryDrilldown" class="hidden" style="margin-top:20px;border-top:1px solid var(--line);padding-top:16px;">
-            <h3 id="drilldownTitle" style="font:700 15px var(--font-body);margin-bottom:10px;"></h3>
-            <table class="table" id="drilldownTable">
-                <thead><tr><th>Date</th><th>Description</th><th class="num">Amount</th></tr></thead>
-                <tbody id="drilldownBody"></tbody>
-            </table>
+        <div id="categoryDrilldown" class="drilldown hidden">
+            <h3 id="drilldownTitle"></h3>
+            <div class="table-wrap">
+                <table class="table" id="drilldownTable">
+                    <thead><tr><th>Date</th><th>Description</th><th class="num">Amount</th></tr></thead>
+                    <tbody id="drilldownBody"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 

@@ -1,19 +1,17 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en"{% include "_html_attrs.html" %}>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign in - Statement Parser</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@400;600;700&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>Sign in - Finance</title>
+    {% include "_fonts.html" %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
 </head>
 <body>
     <div class="auth-split">
         <aside class="auth-panel">
-            <a href="/" class="brand auth-brand">Statement Parser</a>
+            <a href="/" class="brand auth-brand">Finance</a>
             <div>
                 <h2 class="auth-headline">Upload a statement, get transactions back.</h2>
                 <p class="auth-lede">AI reads your PDF or scanned statement so you don't have to retype it.</p>
@@ -44,7 +42,7 @@
                     </div>
                 </form>
 
-                <p class="auth-switch">New to Statement Parser? <a href="/signup" class="link">Create an account</a></p>
+                <p class="auth-switch">Don&rsquo;t have an account? <a href="/signup" class="link">Create one</a></p>
             </div>
         </main>
     </div>

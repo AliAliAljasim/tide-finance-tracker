@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en"{% include "_html_attrs.html" %}>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Set up your account - Finance</title>
+    {% include "_fonts.html" %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/icons.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/welcome.css') }}">
+</head>
+<body data-has-name="{{ '1' if session.user_name else '' }}">
+    <header class="ob-bar">
+        <span class="brand ob-brand">Finance</span>
+        <ol class="ob-steps" aria-label="Setup progress">
+            <li data-step="1" class="current"><span>1</span>Your name</li>
+            <li data-step="2"><span>2</span>Accounts</li>
+            <li data-step="3"><span>3</span>Budgets</li>
+            <li data-step="4"><span>4</span>Done</li>
+        </ol>
+        <a href="/dashboard" class="link ob-skip" id="skipSetup">Skip setup</a>
+    </header>
+    <div class="ob-progress" aria-hidden="true"><span id="obProgress"></span></div>
+
+    <main class="ob-main">
+        <!-- Step 1: name -->
+        <section class="ob-step" data-step="1" aria-labelledby="step1Title">
+            <div class="label">Step 1 of 3</div>
+            <h1 class="ob-title" id="step1Title">Welcome. What should we call you?</h1>
+            <p class="ob-lede">We&rsquo;ll use it to greet you on your dashboard and around the app.</p>
+            <form id="nameForm" class="card card-lg stack">
+                <label class="field">
+                    <span>Name</span>
+                    <input type="text" id="nameInput" class="input" maxlength="60" autocomplete="name" placeholder="e.g. Alex" value="{{ session.user_name or '' }}" required autofocus>
+                </label>
+                <div id="nameError" class="form-error hidden"></div>
+                <div class="ob-actions">
+                    <button type="submit" class="btn btn-primary">Continue<i class="icon-arrow-right"></i></button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Step 2: bank accounts -->
+        <section class="ob-step hidden" data-step="2" aria-labelledby="step2Title">
+            <div class="label">Step 2 of 3</div>
+            <h1 class="ob-title" id="step2Title">Add the accounts you&rsquo;ll upload statements for</h1>
+            <p class="ob-lede">One for each chequing, savings or credit card account. Each uploaded statement is filed under one of these.</p>
+
+            <div id="addedAccounts" class="card card-flush ob-added hidden">
+                <div class="dash-card-head">
+                    <h2 class="dash-card-title">Your accounts</h2>
+                    <span class="dash-card-meta" id="addedCount"></span>
+                </div>
+                <div id="addedList"></div>
+            </div>
+
+            <form id="accountForm" class="card card-lg stack">
+                <h2 class="ob-form-title" id="accountFormTitle">Add an account</h2>
+                <fieldset class="field">
+                    <legend class="field-label">Type</legend>
+                    <div class="type-picker">
+                        <label class="type-option">
+                            <input type="radio" name="accountType" value="chequing" checked>
+                            <span class="type-card"><i class="icon-landmark" aria-hidden="true"></i>Chequing</span>
+                        </label>
+                        <label class="type-option">
+                            <input type="radio" name="accountType" value="savings">
+                            <span class="type-card"><i class="icon-piggy-bank" aria-hidden="true"></i>Savings</span>
+                        </label>
+                        <label class="type-option">
+                            <input type="radio" name="accountType" value="credit_card">
+                            <span class="type-card"><i class="icon-credit-card" aria-hidden="true"></i>Credit card</span>
+                        </label>
+                    </div>
+                </fieldset>
+                <div class="form-row">
+                    <label class="field">
+                        <span>Account name</span>
+                        <input type="text" id="accountName" class="input" placeholder="e.g. Everyday Chequing" required>
+                    </label>
+                    <label class="field">
+                        <span>Institution</span>
+                        <input type="text" id="accountInstitution" class="input" placeholder="e.g. Riverside Bank">
+                    </label>
+                </div>
+                <label class="field">
+                    <span id="balanceLabel">Current balance</span>
+                    <span class="control"><span class="affix">$</span><input type="number" id="accountOpeningBalance" class="input mono" step="0.01" placeholder="0.00"><span class="affix">CAD</span></span>
+                    <span class="field-hint" id="balanceHint">What&rsquo;s in the account today. Confirmed statements update it from here.</span>
+                </label>
+                <div id="accountError" class="form-error hidden"></div>
+                <div class="ob-actions">
+                    <button type="submit" class="btn btn-outline"><i class="icon-plus"></i>Add account</button>
+                </div>
+            </form>
+
+            <div class="ob-nav">
+                <button type="button" class="btn btn-ghost" data-back><i class="icon-arrow-left"></i>Back</button>
+                <button type="button" class="btn btn-primary" id="accountsNext">Continue<i class="icon-arrow-right"></i></button>
+            </div>
+        </section>
+
+        <!-- Step 3: budgets -->
+        <section class="ob-step hidden" data-step="3" aria-labelledby="step3Title">
+            <div class="label">Step 3 of 3</div>
+            <h1 class="ob-title" id="step3Title">Set a few monthly budgets</h1>
+            <p class="ob-lede">You&rsquo;ll get a heads-up at 80% and again at 100%. Leave any of these blank to skip them. You can add more categories later.</p>
+            <form id="budgetForm" class="card card-flush">
+                <div id="budgetRows"><p class="list-empty">Loading&hellip;</p></div>
+                <div id="budgetError" class="form-error hidden ob-budget-error"></div>
+            </form>
+            <div class="ob-nav">
+                <button type="button" class="btn btn-ghost" data-back><i class="icon-arrow-left"></i>Back</button>
+                <button type="submit" form="budgetForm" class="btn btn-primary" id="budgetsNext">Continue<i class="icon-arrow-right"></i></button>
+            </div>
+        </section>
+
+        <!-- Step 4: done -->
+        <section class="ob-step hidden" data-step="4" aria-labelledby="step4Title">
+            <span class="ob-done-icon" aria-hidden="true"><i class="icon-check"></i></span>
+            <h1 class="ob-title" id="step4Title">You&rsquo;re all set</h1>
+            <p class="ob-lede">Upload a statement next. We&rsquo;ll pull out the transactions and sort them into categories, and you review them before anything counts.</p>
+            <div class="card ob-recap" id="recap"></div>
+            <div class="ob-nav ob-nav-end">
+                <a href="/dashboard" class="btn btn-ghost">Go to dashboard</a>
+                <a href="/upload" class="btn btn-primary"><i class="icon-file-up"></i>Upload your first statement</a>
+            </div>
+            <p class="ob-footnote">Investing in a TFSA, FHSA, RRSP or RESP? <a href="/investing">Track your contribution room</a> too.</p>
+        </section>
+    </main>
+
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <p>Saving&hellip;</p>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/welcome.js') }}"></script>
+</body>
+</html>

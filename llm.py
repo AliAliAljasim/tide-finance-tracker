@@ -1,4 +1,4 @@
-"""Local LLM client (Ollama) shared by parsing.py and categorization.py.
+"""Local LLM client (Ollama) shared by parsing.py, categorization.py and assistant.py.
 
 Talks to a local Ollama server over its HTTP API using structured outputs:
 the JSON schema is passed as `format`, so the model is constrained to return
@@ -36,16 +36,26 @@ def _host():
 
 def structured_chat(prompt, schema):
     """Returns the model's reply parsed as a dict matching `schema`."""
+    return chat([{'role': 'user', 'content': prompt}], schema)
+
+
+def chat(messages, schema, temperature=0, num_ctx=None):
+    """Multi-turn version of structured_chat: `messages` is a list of
+    {'role': 'system'|'user'|'assistant', 'content': str}. `num_ctx` raises
+    the context window when the prompt is long (Ollama defaults small)."""
     host = _host()
     if not host:
         raise LLMUnavailable('OLLAMA_HOST is empty')
 
+    options = {'temperature': temperature}
+    if num_ctx:
+        options['num_ctx'] = num_ctx
     body = json.dumps({
         'model': os.environ.get('OLLAMA_MODEL', DEFAULT_MODEL),
-        'messages': [{'role': 'user', 'content': prompt}],
+        'messages': messages,
         'format': schema,
         'stream': False,
-        'options': {'temperature': 0},
+        'options': options,
     }).encode()
     req = urllib.request.Request(host + '/api/chat', data=body,
                                  headers={'Content-Type': 'application/json'})

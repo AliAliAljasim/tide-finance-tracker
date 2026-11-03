@@ -11,6 +11,10 @@ from functools import wraps
 from firestore_db import fs
 from parsing import extract_text, mask_account_numbers, parse_statement_text, validate_transactions, ParsingError
 from categorization import DEFAULT_CATEGORIES, categorize_transactions, detect_duplicates, normalize_merchant
+import assistant
+import llm
+from registered import (ACCOUNT_TYPES as INVESTING_TYPES, FHSA_LIFETIME_LIMIT, RRSP_OVER_CONTRIBUTION_BUFFER,
+                        compute_room, over_contribution)
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-finance-app-secret-key-change-in-production')
@@ -27,6 +31,7 @@ ALLOWED_EXTENSIONS = {'.pdf', '.jpg', '.jpeg', '.png'}
 RESET_TOKEN_MAX_AGE = 60 * 60  # 1 hour, per US-03
 ACCOUNT_TYPES = {'chequing', 'savings', 'credit_card'}
 MAX_SUMMARY_MONTHS = 36  # guard against a huge/garbage from->to range
+BUDGET_WARN_PCT = 80  # US-17: alert at 80% and again at 100%
 
 reset_serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'], salt='password-reset')
 
@@ -40,7 +45,24 @@ def _enforce_https():
     if os.environ.get('FORCE_HTTPS') == '1' and request.headers.get('X-Forwarded-Proto', 'http') != 'https':
         return redirect(request.url.replace('http://', 'https://', 1), code=301)
 
-# ===== Firestore-style helpers (see firestore_db.py / CLAUDE.md) =====
+# ===== Every signed-in user must have a name =====
+# Retroactive: accounts created before names existed (or sessions from before
+# then) are sent to the name step of /welcome before any other page loads.
+# The JSON API stays reachable because /welcome itself is built on it.
+
+NAME_EXEMPT_PREFIXES = ('/welcome', '/logout', '/static/', '/api/', '/forgot-password', '/reset-password/')
+
+@app.before_request
+def _require_name():
+    if 'user_id' not in session or request.path.startswith(NAME_EXEMPT_PREFIXES):
+        return None
+    if 'user_name' not in session:
+        session['user_name'] = (user_ref(get_user_id()).get().to_dict() or {}).get('name', '')
+    if not session['user_name']:
+        return redirect(url_for('welcome_page'))
+    return None
+
+# ===== Firestore-style helpers (see firestore_db.py) =====
 
 def user_ref(uid):
     return fs.collection('users').document(uid)
@@ -194,18 +216,18 @@ def too_large(e):
 
 @app.route('/')
 def index():
-    return redirect(url_for('accounts_page') if 'user_id' in session else url_for('login'))
+    return redirect(url_for('dashboard_page') if 'user_id' in session else url_for('login'))
 
 @app.route('/signup')
 def signup():
     if 'user_id' in session:
-        return redirect(url_for('accounts_page'))
+        return redirect(url_for('dashboard_page'))
     return render_template('signup.html')
 
 @app.route('/login')
 def login():
     if 'user_id' in session:
-        return redirect(url_for('accounts_page'))
+        return redirect(url_for('dashboard_page'))
     return render_template('login.html')
 
 @app.route('/logout')
@@ -225,6 +247,16 @@ def reset_password_page(token):
     except (BadSignature, SignatureExpired):
         token_valid = False
     return render_template('reset_password.html', token=token, token_valid=token_valid)
+
+@app.route('/welcome')
+@login_required
+def welcome_page():
+    return render_template('welcome.html')
+
+@app.route('/dashboard')
+@login_required
+def dashboard_page():
+    return render_template('dashboard.html')
 
 @app.route('/accounts')
 @login_required
@@ -258,6 +290,31 @@ def review_page(statement_id):
 def summary_page():
     return render_template('summary.html')
 
+@app.route('/budgets')
+@login_required
+def budgets_page():
+    return render_template('budgets.html')
+
+@app.route('/investing')
+@login_required
+def investing_page():
+    return render_template('registered.html')
+
+@app.route('/investing/<account_id>')
+@login_required
+def investing_detail_page(account_id):
+    uid = get_user_id()
+    if not sub(uid, 'registered_accounts').document(account_id).get().exists:
+        return redirect(url_for('investing_page'))
+    return render_template('registered_detail.html', account_id=account_id)
+
+# Old TFSA & FHSA links and bookmarks.
+@app.route('/registered')
+@app.route('/registered/<account_id>')
+def registered_redirect(account_id=None):
+    return redirect(url_for('investing_detail_page', account_id=account_id) if account_id
+                    else url_for('investing_page'), code=301)
+
 # ===== Auth API =====
 
 @app.route('/api/signup', methods=['POST'])
@@ -283,6 +340,8 @@ def api_signup():
     session.permanent = True
     session['user_id'] = uid
     session['user_email'] = email
+    session['user_name'] = ''
+    session['prefs'] = clean_prefs(None)
     return jsonify({'success': True})
 
 @app.route('/api/login', methods=['POST'])
@@ -301,7 +360,90 @@ def api_login():
     session.permanent = True
     session['user_id'] = user_doc.id
     session['user_email'] = user.get('email')
+    session['user_name'] = user.get('name', '')
+    session['prefs'] = clean_prefs(user.get('preferences'))
     return jsonify({'success': True})
+
+# ===== Profile (onboarding) =====
+
+MAX_NAME_LENGTH = 60
+
+# ===== Preferences (user menu) =====
+# Stored on the user doc so they follow the account across devices, and
+# cached in the session so every page can render them server-side (the theme
+# is set on <html> before first paint, so there's no flash of the wrong one).
+
+THEMES = ('system', 'light', 'dark')
+DEFAULT_PREFS = {'theme': 'system', 'hide_amounts': False}
+
+def clean_prefs(prefs):
+    prefs = prefs if isinstance(prefs, dict) else {}
+    return {'theme': prefs.get('theme') if prefs.get('theme') in THEMES else 'system',
+            'hide_amounts': prefs.get('hide_amounts') is True}
+
+@app.context_processor
+def inject_prefs():
+    if 'user_id' not in session:
+        return {'prefs': dict(DEFAULT_PREFS)}
+    if 'prefs' not in session:  # sessions from before preferences existed
+        session['prefs'] = clean_prefs((user_ref(get_user_id()).get().to_dict() or {}).get('preferences'))
+    return {'prefs': session['prefs']}
+
+@app.route('/api/preferences', methods=['GET'])
+@login_required
+def api_get_preferences():
+    return jsonify(clean_prefs((user_ref(get_user_id()).get().to_dict() or {}).get('preferences')))
+
+@app.route('/api/preferences', methods=['PUT'])
+@login_required
+def api_update_preferences():
+    data = request.get_json(silent=True) or {}
+    if 'theme' in data and data['theme'] not in THEMES:
+        return jsonify({'error': 'Theme must be system, light or dark.'}), 400
+    if 'hide_amounts' in data and not isinstance(data['hide_amounts'], bool):
+        return jsonify({'error': 'hide_amounts must be true or false.'}), 400
+    ref = user_ref(get_user_id())
+    current = clean_prefs((ref.get().to_dict() or {}).get('preferences'))
+    prefs = clean_prefs({**current, **{k: data[k] for k in DEFAULT_PREFS if k in data}})
+    ref.update({'preferences': prefs})
+    session['prefs'] = prefs
+    return jsonify(prefs)
+
+@app.route('/api/change-password', methods=['POST'])
+@login_required
+def api_change_password():
+    data = request.get_json(silent=True) or {}
+    ref = user_ref(get_user_id())
+    user = ref.get().to_dict() or {}
+    if not check_password(data.get('current_password') or '', user.get('password_hash', '')):
+        return jsonify({'error': 'Your current password is incorrect.'}), 400
+    new = data.get('new_password') or ''
+    ok, msg = valid_password(new)
+    if not ok:
+        return jsonify({'error': msg}), 400
+    if new == data.get('current_password'):
+        return jsonify({'error': 'Choose a password different from your current one.'}), 400
+    ref.update({'password_hash': hash_password(new)})
+    return jsonify({'success': True})
+
+@app.route('/api/profile', methods=['GET'])
+@login_required
+def api_get_profile():
+    user = user_ref(get_user_id()).get().to_dict() or {}
+    return jsonify({'email': user.get('email', ''), 'name': user.get('name', '')})
+
+@app.route('/api/profile', methods=['PUT'])
+@login_required
+def api_update_profile():
+    data = request.get_json(silent=True) or {}
+    name = ' '.join((data.get('name') or '').split())
+    if not name:
+        return jsonify({'error': 'Please enter your name.'}), 400
+    if len(name) > MAX_NAME_LENGTH:
+        return jsonify({'error': f'Name must be {MAX_NAME_LENGTH} characters or fewer.'}), 400
+    user_ref(get_user_id()).update({'name': name})
+    session['user_name'] = name
+    return jsonify({'success': True, 'name': name})
 
 @app.route('/api/forgot-password', methods=['POST'])
 def api_forgot_password():
@@ -721,6 +863,25 @@ def confirmed_transactions(uid, account_id):
         txs = [t for t in txs if t.get('account_id') == account_id]
     return txs
 
+@app.route('/api/transactions/recent', methods=['GET'])
+@login_required
+def api_recent_transactions():
+    """Latest confirmed transactions across all accounts, for the dashboard."""
+    uid = get_user_id()
+    try:
+        limit = min(max(int(request.args.get('limit', 8)), 1), 50)
+    except ValueError:
+        return jsonify({'error': 'Limit must be a number.'}), 400
+    cats_by_id = categories_by_id()
+    accounts_by_id = {a['_id']: a for a in stream_docs(sub(uid, 'accounts'))}
+    rows = sorted(confirmed_transactions(uid, 'all'), key=lambda t: (t.get('date') or '', t.get('created_at') or ''), reverse=True)[:limit]
+    for t in rows:
+        cat = cats_by_id.get(t.get('category_id'), {})
+        t['category_name'] = cat.get('name', 'Other')
+        t['category_kind'] = cat.get('kind', 'expense')
+        t['account_name'] = accounts_by_id.get(t.get('account_id'), {}).get('name', 'Unknown account')
+    return jsonify({'transactions': rows})
+
 @app.route('/api/summary/monthly', methods=['GET'])
 @login_required
 def api_summary_monthly():
@@ -792,6 +953,369 @@ def api_summary_category_transactions():
     rows.sort(key=lambda t: t.get('date', ''))
     return jsonify({'transactions': rows})
 
+# ===== Budgets (US-15, US-16, US-17) =====
+# One budget per expense category, doc id = category_id. The amount repeats
+# every month; spending is that month's confirmed debits across all accounts.
+
+def valid_month(value):
+    return bool(re.fullmatch(r'\d{4}-(0[1-9]|1[0-2])', value or ''))
+
+def budget_status(pct):
+    if pct >= 100:
+        return 'over'
+    if pct >= BUDGET_WARN_PCT:
+        return 'warning'
+    return 'ok'
+
+def budget_report(uid, month):
+    cats_by_id = categories_by_id()
+    spent = {}
+    for t in confirmed_transactions(uid, 'all'):
+        if t.get('type') == 'debit' and (t.get('date') or '')[:7] == month:
+            spent[t.get('category_id')] = spent.get(t.get('category_id'), 0.0) + float(t.get('amount') or 0)
+
+    rows, alerts = [], []
+    for b in stream_docs(sub(uid, 'budgets')):
+        cat = cats_by_id.get(b['_id'])
+        if not cat:
+            continue
+        amount = float(b.get('amount') or 0)
+        cat_spent = round(spent.get(b['_id'], 0.0), 2)
+        raw_pct = cat_spent / amount * 100 if amount else 0.0
+        status = budget_status(raw_pct)  # unrounded, so 79.99% isn't flagged as 80%
+        pct = round(raw_pct, 1)
+        rows.append({
+            'category_id': b['_id'], 'category': cat['name'], 'amount': round(amount, 2),
+            'spent': cat_spent, 'remaining': round(amount - cat_spent, 2), 'pct': pct, 'status': status,
+        })
+        if status == 'over':
+            over_by = round(cat_spent - amount, 2)
+            alerts.append({'category_id': b['_id'], 'category': cat['name'], 'level': 'over', 'pct': pct,
+                           'message': f"{cat['name']} is over budget by ${over_by:,.2f}." if over_by > 0
+                                      else f"{cat['name']} has used its whole budget."})
+        elif status == 'warning':
+            alerts.append({'category_id': b['_id'], 'category': cat['name'], 'level': 'warning', 'pct': pct,
+                           'message': f"{cat['name']} is at {pct:.0f}% of its budget."})
+
+    rows.sort(key=lambda r: r['category'])
+    alerts.sort(key=lambda a: -a['pct'])
+    total_amount = round(sum(r['amount'] for r in rows), 2)
+    total_spent = round(sum(r['spent'] for r in rows), 2)
+    return {
+        'month': month, 'budgets': rows, 'alerts': alerts,
+        'totals': {'amount': total_amount, 'spent': total_spent, 'remaining': round(total_amount - total_spent, 2)},
+    }
+
+@app.route('/api/budgets', methods=['GET'])
+@login_required
+def api_list_budgets():
+    month = request.args.get('month') or datetime.now(timezone.utc).strftime('%Y-%m')
+    if not valid_month(month):
+        return jsonify({'error': 'Month must look like YYYY-MM.'}), 400
+    return jsonify(budget_report(get_user_id(), month))
+
+@app.route('/api/budgets/<category_id>', methods=['PUT'])
+@login_required
+def api_set_budget(category_id):
+    uid = get_user_id()
+    cat = categories_by_id().get(category_id)
+    if not cat or cat.get('kind') != 'expense' or cat.get('name') == 'Transfers':
+        return jsonify({'error': 'Choose a spending category for this budget.'}), 400
+    data = request.get_json(silent=True) or {}
+    try:
+        amount = round(float(data.get('amount')), 2)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Budget amount must be a number.'}), 400
+    if amount <= 0:
+        return jsonify({'error': 'Budget amount must be more than $0.'}), 400
+    sub(uid, 'budgets').document(category_id).set({'category_id': category_id, 'amount': amount, 'updated_at': now_iso()})
+    return jsonify({'success': True})
+
+@app.route('/api/budgets/<category_id>', methods=['DELETE'])
+@login_required
+def api_delete_budget(category_id):
+    sub(get_user_id(), 'budgets').document(category_id).delete()
+    return jsonify({'success': True})
+
+# ===== Investing: TFSA, FHSA, RRSP, RESP, RDSP, LIRA, RRIF, non-registered (US-18..US-20) =====
+# Kept apart from bank `accounts`: these have no statements or balance, just
+# contribution room / limits and a log of contributions and withdrawals (see
+# registered.py). Stored as `registered_accounts` for backwards compatibility,
+# even though non-registered accounts live here too.
+
+def current_year():
+    return datetime.now(timezone.utc).year
+
+def valid_registered_fields(data, existing=None):
+    """Returns (fields, error). `existing` is the stored doc when editing."""
+    merged = {**(existing or {}), **data}
+    fields = {}
+    name = (merged.get('name') or '').strip()
+    if not name:
+        return None, 'Account name is required.'
+    fields['name'] = name
+    acc_type = (merged.get('type') or '').strip().lower()
+    if acc_type not in INVESTING_TYPES:
+        return None, 'Choose an account type: ' + ', '.join(t['label'] for t in INVESTING_TYPES.values()) + '.'
+    if existing and acc_type != existing.get('type'):
+        return None, "An account's type can't be changed."
+    meta = INVESTING_TYPES[acc_type]
+    fields['type'] = acc_type
+    fields['institution'] = (merged.get('institution') or '').strip()
+    # Only the numbers that mean something for this type are kept; the rest are 0.
+    uses_room = meta['kind'] == 'annual'
+    uses_prior = acc_type == 'fhsa' or meta['kind'] == 'lifetime'
+    try:
+        fields['starting_room'] = round(float(merged.get('starting_room') or 0), 2) if uses_room else 0.0
+        fields['start_year'] = int(merged.get('start_year') or current_year())
+        fields['prior_contributions'] = round(float(merged.get('prior_contributions') or 0), 2) if uses_prior else 0.0
+        fields['annual_room'] = round(float(merged.get('annual_room') or 0), 2) if acc_type == 'rrsp' else 0.0
+    except (TypeError, ValueError):
+        return None, 'Room, year and contribution amounts must be numbers.'
+    if min(fields['starting_room'], fields['prior_contributions'], fields['annual_room']) < 0:
+        return None, "Room and contribution amounts can't be negative."
+    if not meta['first_year'] <= fields['start_year'] <= current_year():
+        return None, f"Start year must be between {meta['first_year']} and {current_year()}."
+    cap = FHSA_LIFETIME_LIMIT if acc_type == 'fhsa' else meta.get('lifetime_limit')
+    if cap and fields['prior_contributions'] > cap:
+        return None, f"{meta['label']} contributions are capped at ${cap:,} for life."
+    return fields, None
+
+def registered_transactions(uid, account_id):
+    return [t for t in stream_docs(sub(uid, 'registered_transactions')) if t.get('account_id') == account_id]
+
+def with_room(account, txs):
+    years = compute_room(account, txs, current_year())
+    meta = INVESTING_TYPES[account['type']]
+    return {**account, 'label': meta['label'], 'type_name': meta['name'], 'kind': meta['kind'],
+            'lifetime_limit': FHSA_LIFETIME_LIMIT if account['type'] == 'fhsa' else meta.get('lifetime_limit'),
+            'current': years[-1], 'years': years}
+
+def over_contribution_message(account, txs, over_by):
+    meta = INVESTING_TYPES[account['type']]
+    label = meta['label']
+    cap = FHSA_LIFETIME_LIMIT if account['type'] == 'fhsa' else meta.get('lifetime_limit')
+    if cap:
+        # Lifetime total only grows, so the latest year shows how far past the cap it goes.
+        latest = compute_room(account, txs, current_year())[-1]
+        if -latest['lifetime_remaining'] >= over_by:
+            penalty = ('Excess contributions are taxed 1% per month.' if account['type'] == 'fhsa'
+                       else 'CRA charges a penalty tax on contributions over the limit.')
+            return (f'This contribution would take you ${over_by:,.2f} over the ${cap:,} {label} lifetime limit. '
+                    f'{penalty} Save it anyway?')
+    if account['type'] == 'rrsp':
+        return (f'This contribution would put you ${over_by:,.2f} past your RRSP deduction limit plus the '
+                f'${RRSP_OVER_CONTRIBUTION_BUFFER:,} cushion. The excess is taxed 1% per month. Save it anyway?')
+    return (f'This contribution would put you ${over_by:,.2f} over your {label} contribution room. '
+            'Excess contributions are taxed 1% per month. Save it anyway?')
+
+@app.route('/api/registered', methods=['GET'])
+@login_required
+def api_list_registered():
+    uid = get_user_id()
+    all_txs = stream_docs(sub(uid, 'registered_transactions'))
+    accounts = []
+    for a in stream_docs(sub(uid, 'registered_accounts')):
+        acc = with_room(a, [t for t in all_txs if t.get('account_id') == a['_id']])
+        acc.pop('years')
+        accounts.append(acc)
+    accounts.sort(key=lambda a: a.get('created_at', ''))
+    types = [{'type': t, **{k: m[k] for k in ('label', 'name', 'kind', 'first_year')},
+              'lifetime_limit': FHSA_LIFETIME_LIMIT if t == 'fhsa' else m.get('lifetime_limit')}
+             for t, m in INVESTING_TYPES.items()]
+    return jsonify({'accounts': accounts, 'year': current_year(), 'types': types})
+
+@app.route('/api/registered', methods=['POST'])
+@login_required
+def api_create_registered():
+    uid = get_user_id()
+    fields, error = valid_registered_fields(request.get_json(silent=True) or {})
+    if error:
+        return jsonify({'error': error}), 400
+    fields['created_at'] = now_iso()
+    _, ref = sub(uid, 'registered_accounts').add(fields)
+    return jsonify({'success': True, 'account': with_room({**fields, '_id': ref.id}, [])})
+
+@app.route('/api/registered/<account_id>', methods=['GET'])
+@login_required
+def api_get_registered(account_id):
+    uid = get_user_id()
+    doc = sub(uid, 'registered_accounts').document(account_id).get()
+    if not doc.exists:
+        return jsonify({'error': 'Account not found.'}), 404
+    txs = registered_transactions(uid, account_id)
+    txs.sort(key=lambda t: (t.get('date', ''), t.get('created_at', '')), reverse=True)
+    return jsonify({'account': with_room({**doc.to_dict(), '_id': account_id}, txs), 'transactions': txs})
+
+@app.route('/api/registered/<account_id>', methods=['PUT'])
+@login_required
+def api_update_registered(account_id):
+    uid = get_user_id()
+    ref = sub(uid, 'registered_accounts').document(account_id)
+    doc = ref.get()
+    if not doc.exists:
+        return jsonify({'error': 'Account not found.'}), 404
+    fields, error = valid_registered_fields(request.get_json(silent=True) or {}, existing=doc.to_dict())
+    if error:
+        return jsonify({'error': error}), 400
+    txs = registered_transactions(uid, account_id)
+    if any((t.get('date') or '')[:4] < str(fields['start_year']) for t in txs):
+        return jsonify({'error': 'Some logged transactions are before that start year. Delete them first.'}), 400
+    ref.update(fields)
+    return jsonify({'success': True, 'account': with_room({**ref.get().to_dict(), '_id': account_id}, txs)})
+
+@app.route('/api/registered/<account_id>', methods=['DELETE'])
+@login_required
+def api_delete_registered(account_id):
+    uid = get_user_id()
+    ref = sub(uid, 'registered_accounts').document(account_id)
+    if not ref.get().exists:
+        return jsonify({'error': 'Account not found.'}), 404
+    for t in registered_transactions(uid, account_id):
+        sub(uid, 'registered_transactions').document(t['_id']).delete()
+    ref.delete()
+    return jsonify({'success': True})
+
+@app.route('/api/registered/<account_id>/transactions', methods=['POST'])
+@login_required
+def api_add_registered_transaction(account_id):
+    uid = get_user_id()
+    doc = sub(uid, 'registered_accounts').document(account_id).get()
+    if not doc.exists:
+        return jsonify({'error': 'Account not found.'}), 404
+    account = doc.to_dict()
+    data = request.get_json(silent=True) or {}
+
+    tx_type = data.get('type')
+    if tx_type not in ('contribution', 'withdrawal'):
+        return jsonify({'error': 'Choose contribution or withdrawal.'}), 400
+    date = (data.get('date') or '').strip()
+    try:
+        tx_date = datetime.strptime(date, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({'error': 'Enter a valid date.'}), 400
+    if tx_date > datetime.now(timezone.utc).date():
+        return jsonify({'error': "Date can't be in the future."}), 400
+    if tx_date.year < int(account['start_year']):
+        return jsonify({'error': f"Date can't be before {account['start_year']}, the year your starting room is from."}), 400
+    try:
+        amount = round(float(data.get('amount')), 2)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Amount must be a number.'}), 400
+    if amount <= 0:
+        return jsonify({'error': 'Amount must be more than $0.'}), 400
+
+    tx = {'account_id': account_id, 'date': date, 'type': tx_type, 'amount': amount,
+          'note': (data.get('note') or '').strip(), 'created_at': now_iso()}
+
+    # US-20: warn before an over-contribution, but let the user go ahead —
+    # it's allowed, it just costs a 1%/month penalty tax. Only warn when this
+    # contribution makes things worse, so an account that's already over
+    # doesn't nag on every unrelated entry.
+    if tx_type == 'contribution' and data.get('force') is not True:
+        txs = registered_transactions(uid, account_id)
+        before = over_contribution(account, txs, tx_date.year, current_year())
+        after = over_contribution(account, txs + [tx], tx_date.year, current_year())
+        if after > before:
+            return jsonify({
+                'error': over_contribution_message(account, txs + [tx], after),
+                'confirm_required': True,
+                'over_by': after,
+            }), 409
+
+    _, ref = sub(uid, 'registered_transactions').add(tx)
+    return jsonify({'success': True, 'transaction': {**tx, '_id': ref.id}})
+
+@app.route('/api/registered/<account_id>/transactions/<tx_id>', methods=['DELETE'])
+@login_required
+def api_delete_registered_transaction(account_id, tx_id):
+    uid = get_user_id()
+    ref = sub(uid, 'registered_transactions').document(tx_id)
+    doc = ref.get()
+    if not doc.exists or doc.to_dict().get('account_id') != account_id:
+        return jsonify({'error': 'Transaction not found.'}), 404
+    ref.delete()
+    return jsonify({'success': True})
+
+
+# ===== AI assistant =====
+# The model sees a snapshot of this user's data (assistant.py). Anything it
+# wants to add comes back as a proposal: validated here with the same rules
+# as the accounts APIs, then only created when the user confirms it in the UI.
+
+ASSISTANT_UNAVAILABLE = ('The assistant needs the local AI model, and it isn\u2019t running right now. '
+                         'Start it with `make ollama`, then try again.')
+
+def assistant_proposal(action):
+    """Turns the model's action into {endpoint, payload, summary}, or None."""
+    kind = action.get('kind')
+    name = str(action.get('name') or '').strip()[:80]
+    acc_type = str(action.get('account_type') or '').strip().lower()
+    institution = str(action.get('institution') or '').strip()[:80]
+    try:
+        amount = round(float(action.get('amount') or 0), 2)
+    except (TypeError, ValueError):
+        amount = 0.0
+
+    if kind == 'add_bank_account':
+        payload = {'name': name, 'type': acc_type, 'institution': institution, 'opening_balance': amount}
+        if valid_account_fields(payload)[1]:
+            return None
+        amount_label = 'Balance owed' if acc_type == 'credit_card' else 'Current balance'
+        return {'endpoint': '/api/accounts', 'payload': payload,
+                'summary': {'title': name, 'type_label': acc_type.replace('_', ' ').capitalize(),
+                            'institution': institution, 'amount_label': amount_label, 'amount': amount,
+                            'view_url': '/accounts'}}
+
+    if kind == 'add_investing_account':
+        meta = INVESTING_TYPES.get(acc_type)
+        if not meta:
+            return None
+        payload = {'name': name, 'type': acc_type, 'institution': institution, 'start_year': current_year()}
+        amount_label = None
+        if meta['kind'] == 'annual':
+            payload['starting_room'] = amount
+            amount_label = f'Room in {current_year()}'
+        elif meta['kind'] == 'lifetime':
+            payload['prior_contributions'] = amount
+            amount_label = 'Contributed so far'
+        if valid_registered_fields(payload)[1]:
+            return None
+        return {'endpoint': '/api/registered', 'payload': payload,
+                'summary': {'title': name, 'type_label': f"{meta['label']} \u00b7 {meta['name']}",
+                            'institution': institution, 'amount_label': amount_label,
+                            'amount': amount if amount_label else None, 'view_url': '/investing'}}
+    return None
+
+@app.route('/api/assistant', methods=['POST'])
+@login_required
+def api_assistant():
+    uid = get_user_id()
+    history = assistant.clean_history((request.get_json(silent=True) or {}).get('messages'))
+    if not history or history[-1]['role'] != 'user':
+        return jsonify({'error': 'Ask a question first.'}), 400
+
+    all_txs = stream_docs(sub(uid, 'registered_transactions'))
+    investing = [with_room(a, [t for t in all_txs if t.get('account_id') == a['_id']])
+                 for a in stream_docs(sub(uid, 'registered_accounts'))]
+    now = datetime.now(timezone.utc)
+    snapshot = assistant.build_snapshot(
+        today=now.date(),
+        user_name=session.get('user_name', ''),
+        accounts=stream_docs(sub(uid, 'accounts')),
+        investing_accounts=investing,
+        budget_report=budget_report(uid, now.strftime('%Y-%m')),
+        transactions=confirmed_transactions(uid, 'all'),
+        categories_by_id=categories_by_id(),
+        transfers_id=categories_by_name().get('Transfers', {}).get('_id'),
+    )
+    try:
+        result = assistant.ask(history, snapshot, INVESTING_TYPES)
+    except llm.LLMUnavailable:
+        return jsonify({'error': ASSISTANT_UNAVAILABLE}), 503
+    except llm.LLMError:
+        return jsonify({'error': 'The assistant had trouble answering. Please try again.'}), 502
+    return jsonify({'reply': result['reply'], 'proposal': assistant_proposal(result['action'])})
 
 if __name__ == '__main__':
     os.makedirs(UPLOAD_DIR, exist_ok=True)

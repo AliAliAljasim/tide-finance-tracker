@@ -1,0 +1,69 @@
+/* AI assistant: a floating "Ask assistant" pill that opens a chat panel in
+   the bottom-right corner (full screen on phones). */
+
+.assist-fab { position: fixed; right: 24px; bottom: 24px; z-index: 90; display: inline-flex; align-items: center; gap: 10px; height: 52px; padding: 0 24px 0 20px; border: 0; border-radius: var(--radius-pill); background: var(--action-primary-bg); color: var(--action-primary-fg); font: 600 16px var(--font-sans); cursor: pointer; box-shadow: 0 6px 24px rgba(26,23,20,.25); transition: background 120ms var(--ease-out), transform 120ms var(--ease-out); }
+.assist-fab i { font-size: 20px; }
+.assist-fab:hover { background: var(--action-primary-bg-hover); }
+.assist-fab:active { transform: scale(.98); }
+.assist-fab[aria-expanded="true"] { display: none; }
+
+.assist-panel { position: fixed; right: 24px; bottom: 24px; z-index: 95; width: 400px; height: min(680px, calc(100vh - 48px)); display: flex; flex-direction: column; background: var(--surface-raised); border: 1px solid var(--border-subtle); border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); overflow: hidden; animation: rise 240ms var(--ease-out); }
+.assist-panel[hidden] { display: none; }
+
+.assist-head { display: flex; align-items: center; gap: 14px; padding: 20px 16px 18px 24px; border-bottom: 1px solid var(--border-subtle); }
+.assist-mark { flex: none; width: 40px; height: 40px; border-radius: var(--radius-md); background: var(--surface-accent-subtle); color: var(--clay-500); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.assist-head-text { flex: 1; min-width: 0; }
+.assist-title { font-size: 20px; line-height: 1.2; }
+.assist-sub { font-size: 13px; color: var(--text-tertiary); }
+
+.assist-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; padding: 24px; }
+.assist-empty { margin-top: auto; }
+.assist-intro { font: 400 22px/1.35 var(--font-serif); letter-spacing: -0.01em; margin-bottom: 20px; }
+.assist-chips { display: flex; flex-direction: column; gap: 8px; }
+.assist-chip { text-align: left; padding: 12px 16px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--surface-page); color: var(--text-secondary); font: 400 14px/1.35 var(--font-sans); cursor: pointer; transition: border-color 120ms var(--ease-out), color 120ms var(--ease-out); }
+.assist-chip:hover { border-color: var(--border-strong); color: var(--text-primary); }
+
+.assist-thread { display: flex; flex-direction: column; gap: 16px; }
+.assist-thread:empty { display: none; }
+.assist-msg { max-width: 88%; font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; animation: rise 200ms var(--ease-out); }
+.assist-msg.user { align-self: flex-end; padding: 10px 14px; border-radius: 16px 16px 4px 16px; background: var(--surface-sunken); }
+.assist-msg.bot { align-self: flex-start; }
+.assist-msg.bot p + p, .assist-msg.bot p + ul, .assist-msg.bot ul + p { margin-top: 8px; }
+.assist-msg.bot ul { padding-left: 18px; }
+.assist-msg.error { color: var(--status-danger); }
+.assist-msg code { font-family: var(--font-mono); font-size: 13px; padding: 1px 5px; border-radius: 4px; background: var(--surface-sunken); }
+.assist-typing { display: inline-flex; gap: 4px; padding: 6px 0; }
+.assist-typing span { width: 6px; height: 6px; border-radius: 50%; background: var(--stone-400); animation: assist-dot 1s infinite ease-in-out; }
+.assist-typing span:nth-child(2) { animation-delay: .15s; }
+.assist-typing span:nth-child(3) { animation-delay: .3s; }
+/* Shown when an answer takes more than a few seconds. */
+.assist-slow { margin-top: 4px; font-size: 13px; color: var(--text-tertiary); }
+@keyframes assist-dot { 0%, 80%, 100% { opacity: .3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+
+/* Proposed action: nothing is created until the user confirms here. */
+.assist-action { margin-top: 12px; padding: 16px; border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--surface-page); }
+.assist-action-head { display: flex; align-items: center; gap: 12px; }
+.assist-action-head .row-icon { width: 36px; height: 36px; font-size: 16px; background: var(--surface-raised); }
+.assist-action dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin-top: 12px; font-size: 13px; }
+.assist-action dt { color: var(--text-tertiary); }
+.assist-action dd { font-weight: 600; font-variant-numeric: tabular-nums; }
+.assist-action-buttons { display: flex; gap: 8px; margin-top: 14px; }
+.assist-action-done { margin-top: 12px; font-size: 14px; font-weight: 600; color: var(--status-positive); }
+.assist-action-done.muted { color: var(--text-tertiary); font-weight: 400; }
+
+.assist-compose { position: relative; padding: 16px; border-top: 1px solid var(--border-subtle); }
+.assist-input { display: block; width: 100%; min-height: 80px; max-height: 160px; padding: 14px 60px 14px 18px; border: 1px solid var(--border-default); border-radius: var(--radius-lg); background: var(--surface-sunken); font: 400 15px/1.45 var(--font-sans); color: var(--text-primary); resize: none; transition: border-color 120ms var(--ease-out), box-shadow 120ms var(--ease-out); }
+.assist-input::placeholder { color: var(--text-tertiary); }
+.assist-input:focus { outline: none; border-color: var(--border-focus); box-shadow: var(--ring-focus); background: var(--surface-raised); }
+.assist-send { position: absolute; right: 28px; bottom: 28px; width: 40px; height: 40px; border: 0; border-radius: 50%; background: var(--action-primary-bg); color: var(--action-primary-fg); font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 120ms var(--ease-out), opacity 120ms; }
+.assist-send:hover:not(:disabled) { background: var(--action-primary-bg-hover); }
+.assist-send:disabled { background: var(--stone-400); cursor: not-allowed; }
+
+/* Keep page content clear of the floating button. */
+.app-main { padding-bottom: 120px; }
+
+@media (max-width: 640px) {
+  .assist-fab { right: 16px; bottom: 16px; height: 48px; padding: 0 20px 0 16px; font-size: 15px; }
+  .assist-panel { inset: 0; width: auto; height: auto; border-radius: 0; border: 0; }
+  .assist-body { padding: 20px 16px; }
+}

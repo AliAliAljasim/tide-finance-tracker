@@ -1,23 +1,24 @@
 {% extends "base.html" %}
-{% block title %}Review transactions - Statement Parser{% endblock %}
+{% block title %}Review transactions - Finance{% endblock %}
 {% block content %}
 <div class="page" data-statement-id="{{ statement_id }}">
-    <div class="page-head">
+    <header class="page-head">
         <div>
+            <a href="/upload" class="back-link"><i class="icon-arrow-left"></i>Upload statement</a>
             <h1 class="page-title">Review transactions</h1>
             <p class="page-sub" id="reviewSub">Check the parsed rows below. Red rows failed balance or date validation. Amber rows look like duplicates. Fix what needs fixing before you confirm.</p>
         </div>
         <div class="page-actions">
-            <button type="button" id="addRowBtn" class="btn btn-outline">+ Add row</button>
             <button type="button" id="discardBtn" class="btn btn-ghost">Discard</button>
-            <button type="button" id="confirmBtn" class="btn btn-primary">Confirm &amp; save</button>
+            <button type="button" id="addRowBtn" class="btn btn-outline"><i class="icon-plus"></i>Add row</button>
+            <button type="button" id="confirmBtn" class="btn btn-accent"><i class="icon-check"></i>Confirm &amp; save</button>
         </div>
-    </div>
+    </header>
 
-    <div id="statementBanner" class="card hidden" style="margin-bottom:20px;border-color:var(--neg);"></div>
+    <div id="statementBanner" class="callout danger hidden" style="margin-bottom:16px;font-size:14px;"></div>
 
-    <div class="card table-card" style="padding:0;overflow-x:auto;">
-        <table class="table" id="txTable">
+    <div class="card card-flush table-wrap">
+        <table class="table table-dense" id="txTable">
             <thead>
                 <tr>
                     <th>Date</th>
@@ -30,7 +31,7 @@
                 </tr>
             </thead>
             <tbody id="txBody">
-                <tr><td colspan="6" class="muted">Loading&hellip;</td></tr>
+                <tr><td colspan="7" class="muted">Loading&hellip;</td></tr>
             </tbody>
         </table>
     </div>

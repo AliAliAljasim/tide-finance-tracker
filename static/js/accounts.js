@@ -1,4 +1,5 @@
 const TYPE_LABELS = { chequing: 'Chequing', savings: 'Savings', credit_card: 'Credit card' };
+const TYPE_ICONS = { chequing: 'landmark', savings: 'piggy-bank', credit_card: 'credit-card' };
 
 function escapeHtml(str) {
     const div = document.createElement('div');
@@ -8,7 +9,7 @@ function escapeHtml(str) {
 
 function money(n) {
     const v = Number(n || 0);
-    return (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return (v < 0 ? '−$' : '$') + Math.abs(v).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function showToast(message, isError) {
@@ -21,27 +22,35 @@ function showToast(message, isError) {
 async function loadAccounts() {
     const res = await fetch('/api/accounts');
     const data = await res.json();
-    const grid = document.getElementById('accountsGrid');
+    const grid = document.getElementById('accountsList');
     const accounts = data.accounts || [];
+    // A credit card's balance is what's owed, so it counts against the net.
+    const net = accounts.reduce((s, a) => s + (a.type === 'credit_card' ? -1 : 1) * Number(a.current_balance || 0), 0);
+    document.getElementById('netValue').innerHTML = moneyHtml(net);
+    document.getElementById('netCard').classList.toggle('hidden', accounts.length === 0);
     if (accounts.length === 0) {
-        grid.innerHTML = '<p class="muted">No accounts yet. Add one to start uploading statements.</p>';
+        grid.innerHTML = '<p class="list-empty">No accounts yet. Add one to start uploading statements.</p>';
         return;
     }
     grid.innerHTML = accounts.map(a => {
         const isCard = a.type === 'credit_card';
-        const balanceClass = isCard ? (a.current_balance > 0 ? 'neg' : 'pos') : (a.current_balance < 0 ? 'neg' : 'pos');
-        const balanceLabel = isCard ? 'Balance owed' : 'Current balance';
+        const owing = isCard ? a.current_balance > 0 : a.current_balance < 0;
+        const meta = [TYPE_LABELS[a.type] || a.type, a.institution].filter(Boolean).map(escapeHtml).join(' · ');
         return `
-        <div class="card card-lg ledger-card account-card" style="width:280px;">
-            <div class="label">${TYPE_LABELS[a.type] || a.type}</div>
-            <a href="/accounts/${a._id}" class="link" style="font:600 20px var(--font-display);color:var(--ink);text-decoration:none;display:block;margin-top:4px;">${escapeHtml(a.name)}</a>
-            <div class="muted" style="font-size:13px;margin-top:2px;">${escapeHtml(a.institution || 'No institution set')}</div>
-            <div class="stat-value ${balanceClass}">${money(a.current_balance)}</div>
-            <div class="stat-sub">${balanceLabel}</div>
-            <div class="row" style="margin-top:16px;gap:8px;">
-                <button type="button" class="btn btn-outline btn-sm edit-account" data-id="${a._id}">Edit</button>
-                <button type="button" class="btn btn-ghost btn-sm delete-account" data-id="${a._id}" data-name="${escapeHtml(a.name)}">Delete</button>
-            </div>
+        <div class="list-row">
+            <span class="row-icon" aria-hidden="true"><i class="icon-${TYPE_ICONS[a.type] || 'landmark'}"></i></span>
+            <span class="row-main">
+                <a href="/accounts/${a._id}" class="row-title">${escapeHtml(a.name)}</a>
+                <span class="row-meta">${meta}</span>
+            </span>
+            <span class="row-end">
+                <span class="row-amount ${owing ? 'neg' : ''}">${money(a.current_balance)}</span>
+                <span class="row-meta">${isCard ? 'Balance owed' : 'Current balance'}</span>
+            </span>
+            <span class="row-actions">
+                <button type="button" class="icon-btn edit-account" data-id="${a._id}" aria-label="Edit ${escapeHtml(a.name)}"><i class="icon-pencil"></i></button>
+                <button type="button" class="icon-btn danger delete-account" data-id="${a._id}" data-name="${escapeHtml(a.name)}" aria-label="Delete ${escapeHtml(a.name)}"><i class="icon-trash-2"></i></button>
+            </span>
         </div>`;
     }).join('');
 

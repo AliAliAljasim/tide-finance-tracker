@@ -56,18 +56,18 @@ function rowHtml(tx) {
     let rowStyle = '';
     let banner = '';
     if (tx.flagged) {
-        rowStyle = ' style="background:#2E1C1C;"';
-        banner = `<div style="font-size:12px;color:var(--neg);margin-top:4px;">${escapeHtml(tx.flag_reason)}</div>`;
+        rowStyle = ' style="background:var(--status-danger-bg);"';
+        banner = `<div style="font-size:12px;font-weight:600;color:var(--status-danger);margin-top:6px;">${escapeHtml(tx.flag_reason)}</div>`;
     } else if (tx.is_duplicate) {
-        rowStyle = ' style="background:#2E2814;"';
-        banner = `<div style="font-size:12px;color:var(--accent);margin-top:4px;">This looks like a duplicate of an existing transaction.
+        rowStyle = ' style="background:var(--status-warning-bg);"';
+        banner = `<div style="font-size:12px;font-weight:600;color:var(--status-warning);margin-top:6px;">This looks like a duplicate of an existing transaction.
             <button type="button" class="link dup-keep" style="background:none;border:0;cursor:pointer;margin-left:8px;">Keep</button>
-            <button type="button" class="link dup-skip" style="background:none;border:0;cursor:pointer;color:var(--neg);margin-left:10px;">Skip</button></div>`;
+            <button type="button" class="link dup-skip" style="background:none;border:0;cursor:pointer;color:var(--status-danger);margin-left:10px;">Skip</button></div>`;
     }
     return `
     <tr data-id="${tx._id}" data-duplicate="${tx.is_duplicate ? 'true' : 'false'}"${rowStyle}>
         <td><input class="input mono" data-field="date" type="date" value="${escapeHtml(tx.date)}"></td>
-        <td><input class="input" data-field="description" value="${escapeHtml(tx.description)}">${banner}</td>
+        <td style="min-width:220px;"><input class="input desc" data-field="description" value="${escapeHtml(tx.description)}">${banner}</td>
         <td><select class="select" data-field="category_id">${categoryOptions(tx.category_id)}</select></td>
         <td class="num"><input class="input mono" data-field="amount" type="number" step="0.01" style="text-align:right;" value="${tx.amount}"></td>
         <td>
@@ -77,7 +77,7 @@ function rowHtml(tx) {
             </select>
         </td>
         <td class="num"><input class="input mono" data-field="balance" type="number" step="0.01" style="text-align:right;" value="${tx.balance != null ? tx.balance : ''}"></td>
-        <td><button type="button" class="btn btn-ghost btn-sm delete-row">Delete</button></td>
+        <td><button type="button" class="icon-btn icon-btn-sm danger delete-row" aria-label="Delete row"><i class="icon-trash-2"></i></button></td>
     </tr>`;
 }
 

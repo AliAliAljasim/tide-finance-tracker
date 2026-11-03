@@ -9,7 +9,7 @@ function escapeHtml(str) {
 
 function money(n) {
     const v = Number(n || 0);
-    return (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return (v < 0 ? '−$' : '$') + Math.abs(v).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 async function load() {
@@ -27,8 +27,8 @@ async function load() {
     const isCard = a.type === 'credit_card';
     document.getElementById('balanceLabel').textContent = isCard ? 'Balance owed' : 'Current balance';
     const balanceEl = document.getElementById('accountBalance');
-    balanceEl.textContent = money(a.current_balance);
-    balanceEl.className = 'stat-value ' + ((isCard ? a.current_balance > 0 : a.current_balance < 0) ? 'neg' : 'pos');
+    balanceEl.innerHTML = moneyHtml(a.current_balance);
+    balanceEl.className = 'stat-value ' + ((isCard ? a.current_balance > 0 : a.current_balance < 0) ? 'neg' : '');
 
     const body = document.getElementById('txBody');
     if (!data.transactions.length) {
@@ -37,10 +37,10 @@ async function load() {
     }
     body.innerHTML = data.transactions.map(t => `
         <tr>
-            <td class="mono">${escapeHtml(t.date)}</td>
-            <td>${escapeHtml(t.description)}</td>
-            <td><span class="pill">${escapeHtml(t.category_name)}</span></td>
-            <td class="num ${t.type === 'credit' ? 'pos' : ''}">${t.type === 'credit' ? '+' : '-'}${money(t.amount)}</td>
+            <td class="mono" style="white-space:nowrap;">${escapeHtml(t.date)}</td>
+            <td class="desc">${escapeHtml(t.description)}</td>
+            <td><span class="badge">${escapeHtml(t.category_name)}</span></td>
+            <td class="num ${t.type === 'credit' ? 'pos' : ''}">${t.type === 'credit' ? '+' : '−'}${money(t.amount)}</td>
             <td>${t.type === 'credit' ? 'Credit' : 'Debit'}</td>
             <td class="num">${t.balance != null ? money(t.balance) : ''}</td>
         </tr>`).join('');

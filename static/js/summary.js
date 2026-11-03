@@ -1,10 +1,3 @@
-// Named categories get a fixed, stable color (identity, not rank) — anything
-// else (Health, Subscriptions, Fees & interest, Other, ...) folds into a
-// single gray "Other" bucket rather than generating more hues past the
-// validated 8-slot categorical palette. See the dataviz skill's palette.md.
-const CATEGORY_COLOR_ORDER = ['Groceries', 'Dining', 'Rent / Mortgage', 'Utilities', 'Transportation', 'Shopping', 'Entertainment'];
-const CATEGORY_COLORS = ['var(--cat-1)', 'var(--cat-2)', 'var(--cat-3)', 'var(--cat-4)', 'var(--cat-5)', 'var(--cat-6)', 'var(--cat-7)'];
-
 function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str == null ? '' : String(str);
@@ -12,7 +5,7 @@ function escapeHtml(str) {
 }
 function money(n) {
     const v = Number(n || 0);
-    return (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return (v < 0 ? '−$' : '$') + Math.abs(v).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function compactMoney(n) {
     const v = Number(n || 0);
@@ -76,11 +69,9 @@ async function loadStatCards() {
     const res = await fetch(`/api/summary/monthly?from=${m}&to=${m}&account=${currentAccount()}`);
     const data = await res.json();
     const row = (data.months || [])[0] || { income: 0, expenses: 0, net: 0 };
-    document.getElementById('cardIncome').textContent = money(row.income);
-    document.getElementById('cardExpenses').textContent = money(row.expenses);
-    const netEl = document.getElementById('cardNet');
-    netEl.textContent = money(row.net);
-    netEl.className = 'stat-value ' + (row.net >= 0 ? 'pos' : 'neg');
+    document.getElementById('cardIncome').innerHTML = moneyHtml(row.income);
+    document.getElementById('cardExpenses').innerHTML = moneyHtml(-row.expenses);
+    document.getElementById('cardNet').innerHTML = moneyHtml(row.net, true);
 }
 
 // ── Monthly income vs. expenses (grouped bar) ──────────────────────────
@@ -153,7 +144,7 @@ function renderMonthlyChart(months) {
     const tips = {};
     months.forEach((m, i) => {
         tips[`inc-${i}`] = `${monthLabel(m.month)}<br>Income ${money(m.income)}`;
-        tips[`exp-${i}`] = `${monthLabel(m.month)}<br>Expenses ${money(m.expenses)}`;
+        tips[`exp-${i}`] = `${monthLabel(m.month)}<br>Spending ${money(m.expenses)}`;
     });
     container.querySelectorAll('[data-tip]').forEach(el => {
         el.addEventListener('mousemove', evt => showTooltip(evt, tips[el.dataset.tip]));
@@ -171,93 +162,35 @@ function label(cx, y, text) {
     return `<text x="${cx}" y="${y}" text-anchor="middle" font-size="11" fill="var(--text-secondary)" font-variant-numeric="tabular-nums">${text}</text>`;
 }
 
-// ── Spending by category (sorted single-series bar) ─────────────────────
-
-let lastCategoryRows = [];
+// ── Spending by category (meter per category, largest first) ───────────
 
 async function loadCategoryChart() {
     const month = document.getElementById('categoryMonth').value;
     const res = await fetch(`/api/summary/categories?month=${month}&account=${currentAccount()}`);
     const data = await res.json();
-    const rows = foldCategories(data.categories || []);
-    lastCategoryRows = rows;
-    renderCategoryChart(rows, month);
-    renderCategoryTable(rows);
+    const rows = (data.categories || []).slice().sort((a, b) => b.total - a.total);
+    renderCategoryMeters(rows, month);
     document.getElementById('categoryDrilldown').classList.add('hidden');
 }
 
-function foldCategories(rows) {
-    const named = [];
-    let otherTotal = 0;
-    const otherBreakdown = [];
-    rows.forEach(r => {
-        if (CATEGORY_COLOR_ORDER.includes(r.category)) {
-            named.push(r);
-        } else {
-            otherTotal += r.total;
-            otherBreakdown.push(r);
-        }
-    });
-    const result = named.slice();
-    if (otherTotal > 0) {
-        result.push({ category: 'Other', category_id: null, total: otherTotal, breakdown: otherBreakdown });
-    }
-    result.sort((a, b) => b.total - a.total);
-    return result;
-}
-
-function colorFor(categoryName) {
-    const idx = CATEGORY_COLOR_ORDER.indexOf(categoryName);
-    return idx >= 0 ? CATEGORY_COLORS[idx] : 'var(--cat-other)';
-}
-
-function renderCategoryTable(rows) {
-    document.getElementById('categoryTableBody').innerHTML = rows.map(r => `
-        <tr><td><span class="viz-swatch" style="background:${colorFor(r.category)};"></span>${escapeHtml(r.category)}</td><td class="num">${money(r.total)}</td></tr>
-    `).join('') || '<tr><td colspan="2" class="muted">No spending this month.</td></tr>';
-}
-
-function renderCategoryChart(rows, month) {
+function renderCategoryMeters(rows, month) {
     const container = document.getElementById('categoryChart');
     if (!rows.length) {
         container.innerHTML = '<p class="muted">No spending for this month.</p>';
         return;
     }
-    const width = Math.max(container.clientWidth || 640, 280);
-    const narrow = width < 420;
-    const rowH = 36, padLeft = narrow ? 86 : 150, padRight = narrow ? 44 : 70, padTop = 8;
-    const height = padTop + rows.length * rowH;
-    const plotW = width - padLeft - padRight;
-    const maxVal = Math.max(1, ...rows.map(r => r.total));
-
-    let bars = '';
-    rows.forEach((r, i) => {
-        const y0 = padTop + i * rowH + 6;
-        const h = rowH - 12;
-        const w = Math.max(2, (r.total / maxVal) * plotW);
-        const clickable = r.category_id ? 'clickable' : '';
-        bars += `<text x="${padLeft - 10}" y="${y0 + h / 2 + 4}" text-anchor="end" font-size="13" fill="var(--text-secondary)">${escapeHtml(r.category)}</text>`;
-        bars += `<g class="viz-bar ${clickable}" data-idx="${i}">`;
-        bars += bar(padLeft, y0, w, h, colorFor(r.category), `cat-${i}`);
-        bars += `<rect x="${padLeft}" y="${y0}" width="${Math.max(w, 40)}" height="${h}" fill="transparent"/>`;
-        bars += `</g>`;
-        bars += `<text x="${padLeft + w + 8}" y="${y0 + h / 2 + 4}" font-size="12" fill="var(--text-secondary)" font-variant-numeric="tabular-nums">${compactMoney(r.total)}</text>`;
-    });
-
-    container.innerHTML = `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${bars}</svg>`;
-
-    container.querySelectorAll('[data-idx]').forEach(el => {
-        const row = rows[Number(el.dataset.idx)];
-        el.addEventListener('mousemove', evt => {
-            const tip = row.category_id
-                ? `${escapeHtml(row.category)}<br>${money(row.total)}`
-                : `${escapeHtml(row.category)}<br>${money(row.total)}<br>${(row.breakdown || []).map(b => `${escapeHtml(b.category)}: ${money(b.total)}`).join('<br>')}`;
-            showTooltip(evt, tip);
-        });
-        el.addEventListener('mouseleave', hideTooltip);
-        if (row.category_id) {
-            el.addEventListener('click', () => loadDrilldown(row, month));
-        }
+    const total = rows.reduce((s, r) => s + r.total, 0);
+    const top = rows[0].total || 1;
+    container.innerHTML = rows.map((r, i) => {
+        const tag = r.category_id ? 'button type="button"' : 'div';
+        return `
+        <${tag} class="cat-meter" data-idx="${i}">
+            <span class="cat-meter-head"><strong>${escapeHtml(r.category)}</strong><span>${money(r.total)} · ${Math.round(r.total / total * 100)}%</span></span>
+            <span class="bar" role="presentation"><span class="${i === 0 ? 'accent' : 'quiet'}" style="width:${Math.max(r.total / top * 100, 1)}%;"></span></span>
+        </${tag.split(' ')[0]}>`;
+    }).join('');
+    container.querySelectorAll('button.cat-meter').forEach(el => {
+        el.addEventListener('click', () => loadDrilldown(rows[Number(el.dataset.idx)], month));
     });
 }
 
@@ -266,7 +199,7 @@ async function loadDrilldown(row, month) {
     const data = await res.json();
     document.getElementById('drilldownTitle').textContent = `${row.category} in ${monthLabel(month)}`;
     document.getElementById('drilldownBody').innerHTML = (data.transactions || []).map(t => `
-        <tr><td class="mono">${escapeHtml(t.date)}</td><td>${escapeHtml(t.description)}</td><td class="num">${money(t.amount)}</td></tr>
+        <tr><td class="mono" style="white-space:nowrap;">${escapeHtml(t.date)}</td><td class="desc">${escapeHtml(t.description)}</td><td class="num">${money(t.amount)}</td></tr>
     `).join('') || '<tr><td colspan="3" class="muted">No transactions.</td></tr>';
     document.getElementById('categoryDrilldown').classList.remove('hidden');
 }
@@ -282,7 +215,6 @@ function wireToggle(buttonId, chartId, tableId) {
     });
 }
 wireToggle('monthlyTableToggle', 'monthlyChart', 'monthlyTable');
-wireToggle('categoryTableToggle', 'categoryChart', 'categoryTable');
 
 // ── Wire up filters & boot ───────────────────────────────────────────────
 
@@ -294,7 +226,7 @@ document.getElementById('accountFilter').addEventListener('change', () => { load
 document.getElementById('monthlyFrom').addEventListener('change', loadMonthlyChart);
 document.getElementById('monthlyTo').addEventListener('change', loadMonthlyChart);
 document.getElementById('categoryMonth').addEventListener('change', loadCategoryChart);
-window.addEventListener('resize', () => { loadMonthlyChart(); loadCategoryChart(); });
+window.addEventListener('resize', loadMonthlyChart);
 
 (async function init() {
     await loadAccountFilter();

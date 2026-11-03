@@ -1,19 +1,17 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en"{% include "_html_attrs.html" %}>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Create your account - Statement Parser</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@400;600;700&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>Create your account - Finance</title>
+    {% include "_fonts.html" %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
 </head>
 <body>
     <div class="auth-split">
         <aside class="auth-panel">
-            <a href="/" class="brand auth-brand">Statement Parser</a>
+            <a href="/" class="brand auth-brand">Finance</a>
             <div>
                 <h2 class="auth-headline">Your statements, parsed automatically.</h2>
                 <p class="auth-lede">Create an account to upload bank statements and let AI extract the transactions.</p>
@@ -34,7 +32,7 @@
                     <label class="field">
                         <span>Password</span>
                         <input type="password" id="password" name="password" class="input" placeholder="At least 8 characters" minlength="8" required>
-                        <span class="su-hint" style="display:block;font-size:12px;color:var(--muted);margin-top:6px;">At least 8 characters.</span>
+                        <span class="field-hint">At least 8 characters.</span>
                     </label>
                     <label class="field">
                         <span>Confirm password</span>

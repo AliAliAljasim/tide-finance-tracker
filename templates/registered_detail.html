@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Investing - Finance{% endblock %}
+{% block content %}
+<div class="page" data-account-id="{{ account_id }}">
+    <header class="page-head">
+        <div>
+            <a href="/investing" class="back-link"><i class="icon-arrow-left"></i>Investing</a>
+            <h1 class="page-title" id="regName">Loading&hellip;</h1>
+            <p class="page-sub" id="regMeta"></p>
+        </div>
+        <div class="page-actions">
+            <button type="button" class="btn btn-ghost" id="deleteRegisteredBtn"><i class="icon-trash-2"></i>Delete account</button>
+        </div>
+    </header>
+
+    <div class="grid-stats">
+        <div class="card">
+            <div class="label" id="roomLabel">Room left this year</div>
+            <div class="stat-value" id="roomValue">&mdash;</div>
+            <div class="stat-sub" id="roomSub"></div>
+        </div>
+        <div class="card">
+            <div class="label" id="contributedLabel">Contributed this year</div>
+            <div class="stat-value" id="contributedValue">&mdash;</div>
+            <div class="stat-sub" id="contributedSub"></div>
+        </div>
+        <div class="card">
+            <div class="label" id="thirdLabel">Withdrawn this year</div>
+            <div class="stat-value" id="thirdValue">&mdash;</div>
+            <div class="stat-sub" id="thirdSub"></div>
+            <div class="bar hidden" id="lifetimeBar" style="margin-top:12px;"><span class="quiet"></span></div>
+        </div>
+    </div>
+
+    <div class="row row-top">
+        <div class="card card-lg" style="flex:0 0 340px;max-width:100%;">
+            <h2 class="card-title">Log activity</h2>
+            <form id="txForm" class="stack">
+                <label class="field">
+                    <span>Type</span>
+                    <select id="txType" class="select">
+                        <option value="contribution" id="txTypeIn">Contribution</option>
+                        <option value="withdrawal">Withdrawal</option>
+                    </select>
+                </label>
+                <label class="field">
+                    <span>Date</span>
+                    <input type="date" id="txDate" class="input" required>
+                </label>
+                <label class="field">
+                    <span>Amount</span>
+                    <span class="control"><span class="affix">$</span><input type="number" id="txAmount" class="input mono" step="0.01" min="0.01" required><span class="affix">CAD</span></span>
+                </label>
+                <label class="field">
+                    <span>Note (optional)</span>
+                    <input type="text" id="txNote" class="input" placeholder="e.g. Payroll transfer">
+                </label>
+                <div id="txRoomHint" class="callout hidden"></div>
+                <div id="txFormError" class="form-error hidden"></div>
+                <button type="submit" class="btn btn-primary"><i class="icon-plus"></i>Save</button>
+            </form>
+        </div>
+
+        <div class="stack" style="flex:1;min-width:0;gap:24px;">
+            <div class="card card-flush table-wrap">
+                <table class="table">
+                    <thead><tr><th>Date</th><th>Type</th><th>Note</th><th class="num">Amount</th><th></th></tr></thead>
+                    <tbody id="txBody"><tr><td colspan="5" class="muted">Loading&hellip;</td></tr></tbody>
+                </table>
+            </div>
+
+            <div class="card card-flush table-wrap">
+                <table class="table">
+                    <thead><tr id="yearHead"></tr></thead>
+                    <tbody id="yearBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+{% endblock %}
+{% block modals %}
+<div id="overModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="overModalTitle">
+    <div class="modal-box">
+        <h2 class="modal-title" id="overModalTitle">Over your contribution room</h2>
+        <button type="button" class="icon-btn modal-close" id="overModalClose" aria-label="Close"><i class="icon-x"></i></button>
+        <p class="modal-desc" id="overModalText"></p>
+        <div class="modal-foot">
+            <button type="button" class="btn btn-ghost" id="overModalCancel">Cancel</button>
+            <button type="button" class="btn btn-danger" id="overModalConfirm">Log anyway</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/investing_types.js') }}"></script>
+<script src="{{ url_for('static', filename='js/registered_detail.js') }}"></script>
+{% endblock %}
