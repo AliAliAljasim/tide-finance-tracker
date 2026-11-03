@@ -141,8 +141,11 @@ class ParsingError(Exception):
     pass
 
 
-def parse_statement_text(masked_text):
-    """Returns {period_start, period_end, opening_balance, closing_balance, transactions}."""
+def parse_statement_text(masked_text, owed=False):
+    """Returns {period_start, period_end, opening_balance, closing_balance, transactions}.
+
+    `owed` is True for credit cards, whose printed balance is the amount owed:
+    it goes *up* on a purchase, the opposite of a bank account."""
     if not masked_text.strip():
         # Never hand the model an empty prompt - it will invent transactions.
         raise ParsingError('Could not read any text from this statement.')
@@ -155,15 +158,15 @@ def parse_statement_text(masked_text):
         raise ParsingError(f'The AI parsing service failed: {e}')
     if not isinstance(parsed, dict) or not isinstance(parsed.get('transactions'), list):
         raise ParsingError('The AI service did not return any transactions.')
-    _normalize_amounts(parsed)
+    _normalize_amounts(parsed, owed)
     return parsed
 
 
-def _normalize_amounts(parsed):
+def _normalize_amounts(parsed, owed=False):
     """Small local models often get the sign/type backwards, so derive them
     from the numbers instead: amounts are made positive, and debit vs credit
     comes from the running balance moving down/up (or the sign if no balance
-    is printed)."""
+    is printed). On a credit card (`owed`) the balance rising means a charge."""
     prev_balance = parsed.get('opening_balance')
     for tx in parsed['transactions']:
         try:
@@ -172,7 +175,8 @@ def _normalize_amounts(parsed):
             continue
         balance = tx.get('balance')
         if isinstance(balance, (int, float)) and isinstance(prev_balance, (int, float)) and balance != prev_balance:
-            tx['type'] = 'credit' if balance > prev_balance else 'debit'
+            went_up = balance > prev_balance
+            tx['type'] = ('debit' if went_up else 'credit') if owed else ('credit' if went_up else 'debit')
         elif amount < 0:
             tx['type'] = 'debit'
         tx['amount'] = abs(amount)
@@ -233,8 +237,9 @@ def _parse_with_fallback(masked_text):
 
 # ── Validation (spec step 6) ──────────────────────────────────────────────
 
-def validate_transactions(transactions, opening_balance, closing_balance, period_start, period_end):
-    """Flags rows that fail balance or date-range checks. Returns (rows, balance_ok)."""
+def validate_transactions(transactions, opening_balance, closing_balance, period_start, period_end, owed=False):
+    """Flags rows that fail balance or date-range checks. Returns (rows, balance_ok).
+    `owed`: the balance is an amount owed (credit card), so charges raise it."""
     # Balance math follows the statement's own posting order (transactions
     # aren't necessarily in calendar-date order, e.g. a backdated reversal);
     # callers that want date order for display sort separately.
@@ -251,6 +256,8 @@ def validate_transactions(transactions, opening_balance, closing_balance, period
 
         amount = float(tx.get('amount') or 0)
         signed = amount if tx.get('type') == 'credit' else -amount
+        if owed:
+            signed = -signed
         if running is not None:
             expected = round(running + signed, 2)
             stated = tx.get('balance')

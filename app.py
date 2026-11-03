@@ -4,6 +4,7 @@ from werkzeug.security import check_password_hash  # kept only for any legacy pb
 from werkzeug.utils import secure_filename
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 import bcrypt
+import math
 import os
 import re
 import uuid
@@ -182,6 +183,14 @@ def allowed_upload(filename, content_length):
         return False, 'File is too large. The limit is 10 MB.'
     return True, ''
 
+def to_amount(value):
+    """float() that also rejects NaN and Infinity, which float() accepts as
+    the strings 'nan' / 'inf' and which would then break JSON responses."""
+    amount = float(value)
+    if not math.isfinite(amount):
+        raise ValueError('Amount must be a finite number.')
+    return amount
+
 def valid_account_fields(data, partial=False):
     """Returns (fields, error). `partial`=True allows a subset (PUT)."""
     fields = {}
@@ -201,7 +210,7 @@ def valid_account_fields(data, partial=False):
         fields['institution'] = ''
     if 'opening_balance' in data or not partial:
         try:
-            fields['opening_balance'] = round(float(data.get('opening_balance') or 0), 2)
+            fields['opening_balance'] = round(to_amount(data.get('opening_balance') or 0), 2)
         except (TypeError, ValueError):
             return None, 'Opening balance must be a number.'
     return fields, None
@@ -610,8 +619,11 @@ def api_upload():
     period_end = request.form.get('period_end') or None
     file = request.files.get('file')
 
-    if not account_id or not sub(uid, 'accounts').document(account_id).get().exists:
+    account_doc = sub(uid, 'accounts').document(account_id).get() if account_id else None
+    if not account_doc or not account_doc.exists:
         return jsonify({'error': 'Choose an account for this statement.'}), 400
+    # A credit card's printed balance is what's owed, so it moves the other way.
+    owed = (account_doc.to_dict() or {}).get('type') == 'credit_card'
     if file is None or file.filename == '':
         return jsonify({'error': 'Choose a file to upload.'}), 400
 
@@ -651,14 +663,14 @@ def api_upload():
             raise ParsingError(reason)
 
         masked_text = mask_account_numbers(raw_text)
-        parsed = parse_statement_text(masked_text)  # 1 record per transaction, per the fixed schema
+        parsed = parse_statement_text(masked_text, owed)  # 1 record per transaction, per the fixed schema
         period_start = period_start or parsed.get('period_start')
         period_end = period_end or parsed.get('period_end')
         transactions, balance_ok = validate_transactions(
             parsed.get('transactions', []),
             parsed.get('opening_balance'),
             parsed.get('closing_balance'),
-            period_start, period_end,
+            period_start, period_end, owed,
         )
 
         # US-11: categorize (merchant rule -> keyword -> batched LLM -> default).
@@ -719,10 +731,14 @@ def api_add_transaction(statement_id):
     if not stmt_doc.exists:
         return jsonify({'error': 'Statement not found.'}), 404
     data = request.get_json(silent=True) or {}
+    try:
+        amount = abs(to_amount(data.get('amount') or 0))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Amount must be a number.'}), 400
     tx = {
         'date': data.get('date', ''),
         'description': data.get('description', ''),
-        'amount': float(data.get('amount') or 0),
+        'amount': amount,
         'type': data.get('type') if data.get('type') in ('debit', 'credit') else 'debit',
         'balance': data.get('balance'),
         'flagged': False,
@@ -753,15 +769,24 @@ def api_update_transaction(statement_id, tx_id):
         if field in data:
             updates[field] = data[field]
     if 'amount' in data:
-        updates['amount'] = float(data['amount'] or 0)
+        try:
+            updates['amount'] = abs(to_amount(data['amount'] or 0))
+        except (TypeError, ValueError):
+            return jsonify({'error': 'Amount must be a number.'}), 400
     if 'balance' in data:
         updates['balance'] = data['balance']
     if 'is_duplicate' in data:
         updates['is_duplicate'] = bool(data['is_duplicate'])
+        # Clicking Keep on a flagged row: remember it so the duplicate re-check
+        # at confirm time doesn't skip a row the user chose to keep.
+        updates['duplicate_kept'] = not updates['is_duplicate']
 
     # US-12: changing the category remembers it for this merchant going forward,
     # and optionally applies it to that merchant's other transactions right now.
     if 'category_id' in data and data['category_id'] and data['category_id'] != tx.get('category_id'):
+        # It becomes a permanent merchant rule, so it has to be a real category.
+        if data['category_id'] not in categories_by_id():
+            return jsonify({'error': 'Choose one of the listed categories.'}), 400
         updates['category_id'] = data['category_id']
         merchant_key = tx.get('merchant_key') or normalize_merchant(tx.get('description'))
         upsert_merchant_rule(uid, merchant_key, data['category_id'])
@@ -779,7 +804,14 @@ def api_update_transaction(statement_id, tx_id):
 @login_required
 def api_delete_transaction(statement_id, tx_id):
     uid = get_user_id()
-    sub(uid, 'transactions').document(tx_id).delete()
+    ref = sub(uid, 'transactions').document(tx_id)
+    doc = ref.get()
+    if not doc.exists or doc.to_dict().get('statement_id') != statement_id:
+        return jsonify({'error': 'Transaction not found.'}), 404
+    tx = doc.to_dict()
+    ref.delete()
+    if tx.get('confirmed'):
+        recompute_account_balance(uid, tx.get('account_id'))
     return jsonify({'success': True})
 
 @app.route('/api/statements/<statement_id>/confirm', methods=['POST'])
@@ -795,9 +827,10 @@ def api_confirm_statement(statement_id):
     transactions = [t for t in stream_docs(sub(uid, 'transactions')) if t.get('statement_id') == statement_id]
     # Balance/date flagging runs over every row — it's about the statement's
     # own internal consistency and is unrelated to cross-statement duplicates.
+    account = sub(uid, 'accounts').document(statement.get('account_id') or '_').get().to_dict() or {}
     transactions, balance_ok = validate_transactions(
         transactions, statement.get('opening_balance'), statement.get('closing_balance'),
-        statement.get('period_start'), statement.get('period_end'),
+        statement.get('period_start'), statement.get('period_end'), account.get('type') == 'credit_card',
     )
     tx_sub = sub(uid, 'transactions')
 
@@ -806,6 +839,17 @@ def api_confirm_statement(statement_id):
     # treated as skipped automatically — this is what actually guarantees an
     # overlapping re-upload can never double-count, rather than relying on
     # the user to act on every flag.
+    # Re-check against what's confirmed *now*: another overlapping statement
+    # may have been confirmed after this one was uploaded (both were pending,
+    # so neither was flagged against the other). Rows the user kept stay kept.
+    confirmed_elsewhere = [t for t in stream_docs(tx_sub) if t.get('confirmed')
+                           and t.get('account_id') == statement.get('account_id')
+                           and t.get('statement_id') != statement_id]
+    unresolved = [t for t in transactions if not t.get('duplicate_kept') and not t.get('is_duplicate')]
+    for t in detect_duplicates([dict(t) for t in unresolved], confirmed_elsewhere):
+        if t['is_duplicate']:
+            next(x for x in transactions if x['_id'] == t['_id'])['is_duplicate'] = True
+
     skipped = 0
     for tx in transactions:
         if tx.get('is_duplicate'):
@@ -836,10 +880,15 @@ def api_discard_statement(statement_id):
         file_path = stmt_doc.to_dict().get('file_path')
         if file_path and os.path.exists(file_path):
             os.remove(file_path)
+        removed_confirmed = False
         for t in stream_docs(sub(uid, 'transactions')):
             if t.get('statement_id') == statement_id:
+                removed_confirmed = removed_confirmed or bool(t.get('confirmed'))
                 sub(uid, 'transactions').document(t['_id']).delete()
         stmt_ref.delete()
+        # Deleting a confirmed statement takes its money out of the account.
+        if removed_confirmed:
+            recompute_account_balance(uid, stmt_doc.to_dict().get('account_id'))
     return jsonify({'success': True})
 
 # ===== Summaries (US-13, US-14) =====
@@ -890,6 +939,8 @@ def api_summary_monthly():
     from_month = request.args.get('from') or current_month
     to_month = request.args.get('to') or current_month
     account_id = request.args.get('account', 'all')
+    if not valid_month(from_month) or not valid_month(to_month):
+        return jsonify({'error': 'Months must look like YYYY-MM.'}), 400
     if to_month < from_month:
         from_month, to_month = to_month, from_month
 
@@ -1023,7 +1074,7 @@ def api_set_budget(category_id):
         return jsonify({'error': 'Choose a spending category for this budget.'}), 400
     data = request.get_json(silent=True) or {}
     try:
-        amount = round(float(data.get('amount')), 2)
+        amount = round(to_amount(data.get('amount')), 2)
     except (TypeError, ValueError):
         return jsonify({'error': 'Budget amount must be a number.'}), 400
     if amount <= 0:
@@ -1066,10 +1117,10 @@ def valid_registered_fields(data, existing=None):
     uses_room = meta['kind'] == 'annual'
     uses_prior = acc_type == 'fhsa' or meta['kind'] == 'lifetime'
     try:
-        fields['starting_room'] = round(float(merged.get('starting_room') or 0), 2) if uses_room else 0.0
+        fields['starting_room'] = round(to_amount(merged.get('starting_room') or 0), 2) if uses_room else 0.0
         fields['start_year'] = int(merged.get('start_year') or current_year())
-        fields['prior_contributions'] = round(float(merged.get('prior_contributions') or 0), 2) if uses_prior else 0.0
-        fields['annual_room'] = round(float(merged.get('annual_room') or 0), 2) if acc_type == 'rrsp' else 0.0
+        fields['prior_contributions'] = round(to_amount(merged.get('prior_contributions') or 0), 2) if uses_prior else 0.0
+        fields['annual_room'] = round(to_amount(merged.get('annual_room') or 0), 2) if acc_type == 'rrsp' else 0.0
     except (TypeError, ValueError):
         return None, 'Room, year and contribution amounts must be numbers.'
     if min(fields['starting_room'], fields['prior_contributions'], fields['annual_room']) < 0:
@@ -1199,7 +1250,7 @@ def api_add_registered_transaction(account_id):
     if tx_date.year < int(account['start_year']):
         return jsonify({'error': f"Date can't be before {account['start_year']}, the year your starting room is from."}), 400
     try:
-        amount = round(float(data.get('amount')), 2)
+        amount = round(to_amount(data.get('amount')), 2)
     except (TypeError, ValueError):
         return jsonify({'error': 'Amount must be a number.'}), 400
     if amount <= 0:
@@ -1253,7 +1304,7 @@ def assistant_proposal(action):
     acc_type = str(action.get('account_type') or '').strip().lower()
     institution = str(action.get('institution') or '').strip()[:80]
     try:
-        amount = round(float(action.get('amount') or 0), 2)
+        amount = round(to_amount(action.get('amount') or 0), 2)
     except (TypeError, ValueError):
         amount = 0.0
 

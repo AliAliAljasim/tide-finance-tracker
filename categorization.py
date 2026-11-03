@@ -214,7 +214,9 @@ def _llm_categorize(uncertain, categories_by_name):
             try:
                 _llm_categorize_batch(txs[i:i + LLM_BATCH_SIZE], names, fallback, direction)
             except Exception:
-                return  # fall through to the default category - never block saving
+                # Leave this batch on the default category and carry on with
+                # the rest - one bad batch shouldn't drop every later one.
+                continue
 
 
 def categorize_transactions(transactions, categories_by_name, merchant_rules):
